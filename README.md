@@ -7,7 +7,9 @@ pgzero
 
 ## Running
 from console
-'''python ring_leader.py'''
+'''
+python ring_leader.py
+'''
 
 ## INSTRUCTIONS
 ### Controls
