@@ -1,25 +1,5 @@
 """
-Bubble Popper
-MAJ Crosser
-
-Based on a conversation with CDT Robert Sewell about a game he once played on 
-his phone.
-
-Planned Improvements
-- Structure
-    - Looping through same data structures repetitously?
-    - Move to OOP
-    - Move to PYGame
-
-- Game Play
-    - Pausing Game pauses level message
-    - Choice of 3 random powerups for catching falling bubbles
-
-- Animations
-    - Falling wiggle
-    - Landing Squash
-    - Exploding match bubble
-    - Dying ship
+Ring Leader
 """
 
 import pgzrun
