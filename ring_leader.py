@@ -7,6 +7,8 @@ import random
 import math
 from pygame.time import Clock
 
+from ship import Ship
+
 # Configuration Constants-------------------------------------------------------
 BUBBLE_DIAMETER = 32 #Diameter of a Grid Bubble in pixels
 BUBBLE_PADDING = 4 #Vertical and Horizontal space between grid bubbles in pixels
@@ -23,9 +25,7 @@ WIDTH = (BUBBLE_DIAMETER * BOARD_WIDTH
 # Total Height of the screen based on bubbles
 HEIGHT = BUBBLE_DIAMETER*BOARD_HEIGHT + BUBBLE_PADDING * BOARD_HEIGHT
 
-PURP = (62, 7, 120)   # Ship perimeter color
 BLACK = (0,0,0)       # Background Color
-FLAME = (237, 150, 9) # Ship Thruster Color
 
 #Multiline String Games message constants
 PAUSE_MESSAGE = """PAUSED
@@ -39,6 +39,7 @@ INSTRUCTIONS = """Controls
 - Space Bar cycles available colors
 - Right click to speed out the next row
 - p to pause
+- r to restart
 
 Gameplay
 - Fire bubbles to make rows and columns of 
@@ -69,7 +70,6 @@ BULLET_VELOCITY = .02 * BUBBLE_DIAMETER # constant speed of a fired bullet
 HIT_GROW = BUBBLE_DIAMETER//4 #Ship growth when struck by a falling bubble
 SCORE_VELOCITY = -.02 # Constant upward movement of score alerts
 SCORE_DURATION = 40 # Update cycles to display score alerts
-SHIP_OUTER_COLOR = PURP # color of kill zone peremeter for player ship
 SHIP_ACCEL = .0003 # When W,A,S,D depressed, speedup this much, decel on release
 BUBBLE_GRAVITY = .00028 # When a bubble drops off the grid accellerate downward
 FALLING_BUBBLE_POINTS = 4 # Points received for a falling bubble
@@ -85,16 +85,12 @@ falling_bubbles = [] #[[x_pos, y_pos, color, vely, column], ...more droppers]
 # List of bullets fired from the player's ship
 bullets = [] #[[x_pos, y_pos, angle, color], ...more bullets]
 level_colors = COLOR_LEVELS[0] #start with 3 colors and increase
-ship_radius = BUBBLE_DIAMETER # Ship is twice the size of bubbles
-# [x, y, velx, vely, accel, color, [Thrust Indicators], outer radius]
-ship = [(WIDTH // 2) + BUBBLE_DIAMETER // 2 , # x coordinate
-        HEIGHT - 2 *BUBBLE_DIAMETER,          # y coordinate
-        0,                                    # x velocity
-        0,                                    # y velocity
-        SHIP_ACCEL * BUBBLE_DIAMETER,         # acceration on key hold
-        random.choice(level_colors),          # core/bullet color
-        [False, False, False, False],         # Thrust indicators
-        BUBBLE_DIAMETER//8]                   # outer radius kill circle
+
+ship = Ship((WIDTH // 2 + BUBBLE_DIAMETER // 2, HEIGHT - 2*BUBBLE_DIAMETER),
+             COLOR_LEVELS[0],
+             BUBBLE_DIAMETER,
+             SHIP_ACCEL*BUBBLE_DIAMETER)
+
 # Displayed briefly on screen when points are earned/lost
 score_alerts = [] #[[x_pos, y_pos, msg, duration, velocity], ...more alerts]
 cross_hair = (0,0) #starts here and follows mouse
@@ -115,7 +111,7 @@ speed_rows = MATCH_LENGTH
 def draw():
     screen.fill(BLACK) # Background
     draw_bubbles()
-    draw_ship()
+    ship.draw(screen)
     draw_bullets()
     draw_droppers()
     draw_cross_hair()
@@ -155,14 +151,11 @@ def draw_droppers():
 # Procedure draws cross hairs to match player selected bullet color
 def draw_cross_hair():
     x, y = cross_hair
-    screen.draw.line((x-BUBBLE_DIAMETER//2, y), (x-BUBBLE_DIAMETER//4, y),
-                     ship[5])
-    screen.draw.line((x+BUBBLE_DIAMETER//2, y), (x+BUBBLE_DIAMETER//4, y), 
-                     ship[5])
-    screen.draw.line((x, y-BUBBLE_DIAMETER//2), (x, y-BUBBLE_DIAMETER//4), 
-                     ship[5])
-    screen.draw.line((x, y+BUBBLE_DIAMETER//2), (x, y+BUBBLE_DIAMETER//4), 
-                     ship[5])
+    c = ship.get_color()
+    screen.draw.line((x-BUBBLE_DIAMETER//2, y), (x-BUBBLE_DIAMETER//4, y), c)
+    screen.draw.line((x+BUBBLE_DIAMETER//2, y), (x+BUBBLE_DIAMETER//4, y), c)
+    screen.draw.line((x, y-BUBBLE_DIAMETER//2), (x, y-BUBBLE_DIAMETER//4), c)
+    screen.draw.line((x, y+BUBBLE_DIAMETER//2), (x, y+BUBBLE_DIAMETER//4), c)
 
 # Procedure draws player fired bullets
 def draw_bullets():
@@ -171,24 +164,7 @@ def draw_bullets():
         x, y, c = b[0], b[1], b[3], 
         screen.draw.filled_circle((x,y),BUBBLE_DIAMETER//2, c)
 
-# Porcedure draws player's ship
-def draw_ship():
-    # [x, y, velx, vely, accel, color, [Thrust Indicators], outer radius]
-    x, y, c, b, r = ship[0], ship[1], ship[5], ship[6], ship[7]
-    screen.draw.circle((x, y), r, SHIP_OUTER_COLOR) #outer hull
-    screen.draw.filled_circle((x, y), BUBBLE_DIAMETER//4, c) #bullet indicator
-    if b[0]: # North, Boost Down
-        screen.draw.filled_circle((x, y-r-BUBBLE_PADDING),
-                                  BUBBLE_DIAMETER//4, FLAME)
-    if b[1]: # South, Boost Up
-        screen.draw.filled_circle((x, y+r+BUBBLE_PADDING),
-                                  BUBBLE_DIAMETER//4, FLAME)
-    if b[2]: # East, Boost left
-        screen.draw.filled_circle((x+r+BUBBLE_PADDING, y),
-                                  BUBBLE_DIAMETER//4, FLAME)
-    if b[3]: # West, Boost right
-        screen.draw.filled_circle((x-r-BUBBLE_PADDING, y),
-                                  BUBBLE_DIAMETER//4, FLAME)
+
 # Procedure draws grid of kill bubbles
 def draw_bubbles():
     #[[[x_pos, y_pos, color, wasBullet Flag],...more bubbles] ...more rows]
@@ -208,7 +184,7 @@ def update():
         update_bullets()
         update_droppers()
         update_kill_bubbles()
-        update_ship()
+        ship.update(delta[0], keyboard, keys, WIDTH, HEIGHT)
         update_score_alerts()
         if score >= next_level_points: # Triger level change
             next_level()
@@ -354,89 +330,6 @@ def is_close(x1, y1, x2, y2, d):
 def distance(x1, y1, x2, y2):
     return ((x1-x2)**2 + (y1-y2)**2)**.5
 
-# Procedure updates the ships outer radius and calls the move_ship() procedure.
-# Modifies global ship
-def update_ship():
-    global ship_radius
-    # Animate ship growth
-    if ship[7] < ship_radius:
-        ship[7] += 1
-    elif ship[7] > ship_radius:
-        ship[7] -= 1
-    move_ship()
-
-# Procedure moves the ship position, updates ship velocity and places thrust
-#  indicators based on user keys W,A,S,D. Constains the ships movement in the
-#  vertical plane and wraps it in the horizontal.
-# Modifies global ship
-def move_ship():
-    velx, vely, accel = ship[2], ship[3], ship[4]
-    
-    # Update horizontal velocity and thrust indicators
-    if keyboard[keys.A] and keyboard[keys.D]:
-        ship[6][2] = ship[6][3] = True
-    elif keyboard[keys.A]:
-        velx -= accel
-        ship[6][2] = True
-        ship[6][3] = False
-    elif keyboard[keys.D]:
-        velx += accel
-        ship[6][3] = True
-        ship[6][2] = False
-    else: # Decelerate in the horizontal plane if A or D not depressed.
-        ship[6][2] = ship[6][3] = False
-        sign = 1
-        if velx < 0:
-            sign = -1
-        velx = abs(velx) - accel
-        if velx < 0:
-            velx = 0
-        else:
-            velx *= sign
-
-    # Update vertical velocity and thrust indicators
-    if keyboard[keys.W] and keyboard[keys.S]:
-        ship[6][0] = ship[6][1] = True
-    elif keyboard[keys.W]:
-        vely -= accel
-        ship[6][1] = True
-        ship[6][0] = False
-    elif keyboard[keys.S]:
-        vely += accel
-        ship[6][0] = True
-        ship[6][1] = False
-    else: # Decelerate in the vertical plane if W or S not depressed.
-        ship[6][0] = ship[6][1] = False
-        sign = 1
-        if vely < 0:
-            sign = -1
-        vely = abs(vely) - accel
-        if vely < 0:
-            vely = 0
-        else:
-            vely *= sign
-    
-    # Update velocity
-    ship[2] = velx
-    ship[3] = vely
-    
-    # Update position
-    ship[0] += ship[2] * delta[0]
-    ship[1] += ship[3] * delta[0]
-    
-    # Wrap ship movement in horizontal plane
-    if ship[0] > WIDTH:
-        ship[0] = 0
-    elif ship[0] < 0:
-        ship[0] = WIDTH
-    
-    # Constrain ship movement in vertical plane
-    if ship[1] > HEIGHT:
-        ship[1] = HEIGHT
-        ship[3] = 0
-    elif ship[1] < 0:
-        ship[1] = 0
-        ship[3] = 0
 
 # Function returns boolean indicating if the player's ship collides with the 
 #  kill bubble grid or a falling bubble given a coordinate and a flag which
@@ -445,13 +338,14 @@ def move_ship():
 # Modifies the global ship_radius on collision with falling bubble
 # Modifies the global game_state on collision with bubble grid
 def hit_ship(x, y, g):
-    global game_state, ship_radius
-    kill_zone = ship[7]+BUBBLE_DIAMETER//2
-    if is_close(ship[0], ship[1], x, y, kill_zone):
-        d = distance(ship[0], ship[1], x, y)
+    global game_state
+    kill_zone = ship.current_radius+BUBBLE_DIAMETER//2
+    sx, sy = ship.x, ship.y
+    if is_close(sx, sy, x, y, kill_zone):
+        d = distance(sx, sy, x, y)
         if d < kill_zone:
             if g:
-                ship_radius += HIT_GROW
+                ship.final_radius += HIT_GROW
             else:
                 game_state = 0
             return True
@@ -681,14 +575,14 @@ def on_mouse_move (pos):
 def on_mouse_down (pos, button):
     global bubble_velocity, speed_rows
     if mouse.LEFT == button:
-        bullets.append([ship[0],ship[1], get_angle(pos), ship[5]])
+        bullets.append([ship.x, ship.y, get_angle(pos), ship.get_color()])
     if mouse.RIGHT == button:
         speed_rows += 1
 
 def on_key_down(key):
     global game_state, debug_kb
     if key == keys.SPACE:
-        cycle_bullet_color()
+        ship.cycle_color()
     if key == keys.P:
         if game_state == 3:
             game_state = 1
@@ -703,18 +597,15 @@ def on_key_down(key):
             game_state = 3
     if key == keys.K:
         debug_kb = not debug_kb
-        
-def cycle_bullet_color():
-    ship[5] = level_colors[(level_colors.index(ship[5])+1) % len(level_colors)]
 
 def get_angle(pos):
-    return math.atan2(ship[1] - pos[1], -(ship[0] - pos[0]))
+    return math.atan2(ship.y - pos[1], - (ship.x - pos[0]))
 
 def next_level():
     global level, bubble_velocity, kill_bubbles, bullets, next_level_points, \
-        falling_bubbles, ship_radius, level_colors, new_level_msg, speed_rows
+        falling_bubbles, level_colors, new_level_msg, speed_rows
     kill_bubbles, falling_bubbles, bullets = [], [], []
-    ship_radius = BUBBLE_DIAMETER
+    ship.reset_hull_size()
     level += 1
     new_level_msg = f"Level {level}"
     obv = INITIAL_BUBBLE_VELOCITY+(INITIAL_BUBBLE_VELOCITY * ((level-1) * .1))
@@ -727,11 +618,11 @@ def next_level():
     if level == 5:
         level_colors = COLOR_LEVELS[1]
         new_level_msg += "\nNew Color Added!"
-        ship[5] = random.choice(level_colors)
+        ship.set_colors(level_colors)
     elif level == 10:
         level_colors = COLOR_LEVELS[2]
         new_level_msg += "\nNew Color Added!"
-        ship[5] = random.choice(level_colors)
+        ship.set_colors(level_colors)
 
     clock.schedule(clear_new_level_msg, 15.0)
 
@@ -741,7 +632,7 @@ def clear_new_level_msg():
     
 # Procedure Restarts the game when the 'r' key is pressed
 def initalize_game():
-    global kill_bubbles, falling_bubbles, ship_radius, ship, bullets, score, \
+    global kill_bubbles, falling_bubbles, ship, bullets, score, \
     game_state, level_colors, bubble_velocity, level, next_level_points, \
     speed_rows
     
@@ -749,21 +640,15 @@ def initalize_game():
     falling_bubbles = []
     bullets = []
     level_colors = COLOR_LEVELS[0] 
-    ship_radius = BUBBLE_DIAMETER
-    ship = [(WIDTH // 2) + BUBBLE_DIAMETER // 2 ,
-            HEIGHT - 2 *BUBBLE_DIAMETER,         
-            0,                                   
-            0,                                   
-            SHIP_ACCEL * BUBBLE_DIAMETER,        
-            random.choice(level_colors),         
-            [False, False, False, False],        
-            BUBBLE_DIAMETER//8]                  
+    ship = Ship((WIDTH // 2 + BUBBLE_DIAMETER // 2, HEIGHT - 2*BUBBLE_DIAMETER),
+             COLOR_LEVELS[0],
+             BUBBLE_DIAMETER,
+             SHIP_ACCEL*BUBBLE_DIAMETER)
     score = 0
     bubble_velocity = INITIAL_BUBBLE_VELOCITY 
     game_state = 1
     level = 1 
     next_level_points = 500    
-    level_colors = COLOR_LEVELS[0] 
     new_level_msg = None 
     speed_rows = MATCH_LENGTH
 

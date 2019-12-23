@@ -126,3 +126,16 @@ class Ship(object):
         elif self.y < 0:
             self.y = 0
             self.vely = 0
+            
+    def get_color(self):
+        return self.bullet_colors[self.bullet_index]
+    
+    def set_colors(self, color_list):
+        self.bullet_colors = color_list
+        self.bullet_index = 0
+    
+    def cycle_color(self):
+        self.bullet_index = (self.bullet_index+1)%len(self.bullet_colors)
+        
+    def reset_hull_size(self):
+        self.final_radius = self.initial_radius
