@@ -8,6 +8,7 @@ import math
 from pygame.time import Clock
 
 from ship import Ship
+from bubble import Bullets
 
 # Configuration Constants-------------------------------------------------------
 BUBBLE_DIAMETER = 32 #Diameter of a Grid Bubble in pixels
@@ -83,14 +84,15 @@ debug_kb = False # i key toggles
 # list of all bubbles broken free from grid and falling 
 falling_bubbles = [] #[[x_pos, y_pos, color, vely, column], ...more droppers]
 # List of bullets fired from the player's ship
-bullets = [] #[[x_pos, y_pos, angle, color], ...more bullets]
+#bullets = [] #[[x_pos, y_pos, angle, color], ...more bullets]
+bullets = Bullets()
 level_colors = COLOR_LEVELS[0] #start with 3 colors and increase
 
 ship = Ship((WIDTH // 2 + BUBBLE_DIAMETER // 2, HEIGHT - 2*BUBBLE_DIAMETER),
              COLOR_LEVELS[0],
              BUBBLE_DIAMETER,
              SHIP_ACCEL*BUBBLE_DIAMETER)
-
+print(ship)
 # Displayed briefly on screen when points are earned/lost
 score_alerts = [] #[[x_pos, y_pos, msg, duration, velocity], ...more alerts]
 cross_hair = (0,0) #starts here and follows mouse
@@ -112,7 +114,7 @@ def draw():
     screen.fill(BLACK) # Background
     draw_bubbles()
     ship.draw(screen)
-    draw_bullets()
+    bullets.draw(screen)
     draw_droppers()
     draw_cross_hair()
     draw_score_alerts()
@@ -156,14 +158,6 @@ def draw_cross_hair():
     screen.draw.line((x+BUBBLE_DIAMETER//2, y), (x+BUBBLE_DIAMETER//4, y), c)
     screen.draw.line((x, y-BUBBLE_DIAMETER//2), (x, y-BUBBLE_DIAMETER//4), c)
     screen.draw.line((x, y+BUBBLE_DIAMETER//2), (x, y+BUBBLE_DIAMETER//4), c)
-
-# Procedure draws player fired bullets
-def draw_bullets():
-    for b in bullets:
-        #[[x_pos, y_pos, angle, color], ...more bullets]
-        x, y, c = b[0], b[1], b[3], 
-        screen.draw.filled_circle((x,y),BUBBLE_DIAMETER//2, c)
-
 
 # Procedure draws grid of kill bubbles
 def draw_bubbles():
@@ -217,9 +211,8 @@ def update_bullets():
     #[[x_pos, y_pos, angle, color], ...more bullets]
     while cnt < len(bullets):
         b = bullets[cnt]
-        x, y, ang, c = b
-        new_x = x + BULLET_VELOCITY * math.cos(ang) * delta[0] # x vector change
-        new_y = y - BULLET_VELOCITY * math.sin(ang) * delta[0] # y vector change
+        new_x = b.x + BULLET_VELOCITY * math.cos(b.angle) * delta[0] # x vector change
+        new_y = b.y - BULLET_VELOCITY * math.sin(b.angle) * delta[0] # y vector change
         
         # Check for bullet off screen
         if new_x > WIDTH or new_x < 0 or new_y > HEIGHT or new_y < 0:
@@ -229,11 +222,11 @@ def update_bullets():
             if score < 0: # Don't drop score below 0
                 score = 0
             del bullets[cnt]
-        elif bullet_collide(new_x, new_y, c): # Check for collision with grid
+        elif bullet_collide(new_x, new_y, b.color): # Check for collision with grid
             del bullets[cnt]
         else: # Otherwise, move this bullet in it's direction of travel
-            bullets[cnt][0] = new_x
-            bullets[cnt][1] = new_y
+            bullets[cnt].x = new_x
+            bullets[cnt].y = new_y
             cnt += 1
 
 # Function takes the coordinates of bullet and returns true if the bullet
@@ -575,7 +568,7 @@ def on_mouse_move (pos):
 def on_mouse_down (pos, button):
     global bubble_velocity, speed_rows
     if mouse.LEFT == button:
-        bullets.append([ship.x, ship.y, get_angle(pos), ship.get_color()])
+        bullets.addBullet(ship.x, ship.y, ship.get_color(), get_angle(pos))
     if mouse.RIGHT == button:
         speed_rows += 1
 
@@ -604,7 +597,8 @@ def get_angle(pos):
 def next_level():
     global level, bubble_velocity, kill_bubbles, bullets, next_level_points, \
         falling_bubbles, level_colors, new_level_msg, speed_rows
-    kill_bubbles, falling_bubbles, bullets = [], [], []
+    kill_bubbles, falling_bubbles = [], []
+    bullets = Bullets()
     ship.reset_hull_size()
     level += 1
     new_level_msg = f"Level {level}"
@@ -638,7 +632,7 @@ def initalize_game():
     
     kill_bubbles = []
     falling_bubbles = []
-    bullets = []
+    bullets = Bullets()
     level_colors = COLOR_LEVELS[0] 
     ship = Ship((WIDTH // 2 + BUBBLE_DIAMETER // 2, HEIGHT - 2*BUBBLE_DIAMETER),
              COLOR_LEVELS[0],

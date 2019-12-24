@@ -2,10 +2,6 @@
 Ring Leader
 """
 
-import pgzrun
-#import random
-#import math
-
 class Ship(object):
     PURP = (62, 7, 120)   # Ship perimeter color
     FLAME = (237, 150, 9) # Ship Thruster Color
@@ -26,7 +22,7 @@ class Ship(object):
     
     def __str__(self):
         atts = ['\t' + a + ': ' + str(v) for a,v in self.__dict__.items()]
-        return 'Ship object:\n' + '\n'.join(atts)
+        return type(self).__name__ + ' object:\n' + '\n'.join(atts)
     
     def draw(self, screen):
         screen.draw.circle((self.x, self.y), self.current_radius,
