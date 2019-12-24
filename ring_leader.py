@@ -8,7 +8,7 @@ import math
 from pygame.time import Clock
 
 from ship import Ship
-from bubble import Bullets
+from bubble import Bubble_List
 
 # Configuration Constants-------------------------------------------------------
 BUBBLE_DIAMETER = 32 #Diameter of a Grid Bubble in pixels
@@ -39,8 +39,8 @@ INSTRUCTIONS = """Controls
 - Left Mouse Button Fires Bubbles
 - Space Bar cycles available colors
 - Right click to speed out the next row
-- p to pause
-- r to restart
+- p to pause game
+- r to restart game
 
 Gameplay
 - Fire bubbles to make rows and columns of 
@@ -82,17 +82,16 @@ LOST_BULLET_PENALTY = -4 # Points lost for an errant bullet
 kill_bubbles = []
 debug_kb = False # i key toggles 
 # list of all bubbles broken free from grid and falling 
-falling_bubbles = [] #[[x_pos, y_pos, color, vely, column], ...more droppers]
+droppers = Bubble_List()
 # List of bullets fired from the player's ship
 #bullets = [] #[[x_pos, y_pos, angle, color], ...more bullets]
-bullets = Bullets()
+bullets = Bubble_List()
 level_colors = COLOR_LEVELS[0] #start with 3 colors and increase
 
 ship = Ship((WIDTH // 2 + BUBBLE_DIAMETER // 2, HEIGHT - 2*BUBBLE_DIAMETER),
              COLOR_LEVELS[0],
              BUBBLE_DIAMETER,
              SHIP_ACCEL*BUBBLE_DIAMETER)
-print(ship)
 # Displayed briefly on screen when points are earned/lost
 score_alerts = [] #[[x_pos, y_pos, msg, duration, velocity], ...more alerts]
 cross_hair = (0,0) #starts here and follows mouse
@@ -115,7 +114,7 @@ def draw():
     draw_bubbles()
     ship.draw(screen)
     bullets.draw(screen)
-    draw_droppers()
+    droppers.draw(screen)
     draw_cross_hair()
     draw_score_alerts()
     # Draws the score and next level threshold in bottom left 
@@ -142,13 +141,6 @@ def draw_score_alerts():
             screen.draw.text(f'{m:+d}', midleft=(0, y))
         else:
             screen.draw.text(f'{m:+d}', midtop=(x, y))
-
-# Procedure draws falling bubbles
-def draw_droppers():
-    for d in falling_bubbles:
-        #[[x_pos, y_pos, color, vely, column], ...more droppers]
-        x, y, c = d[0], d[1], d[2]
-        screen.draw.filled_circle((x,y),BUBBLE_DIAMETER//2, c)
 
 # Procedure draws cross hairs to match player selected bullet color
 def draw_cross_hair():
@@ -403,7 +395,7 @@ def drop_loose_bubbles():
             kb = kill_bubbles[i][j]
             if kb[2] and (i,j) not in keep:  # drop any bubbles not in keep list
                 x, y, c = kb[0], kb[1], kb[2] #add new bubble to fallers
-                falling_bubbles.append([x,y,c,bubble_velocity,j])
+                droppers.addDropper(x, y, c, bubble_velocity, j)
                 kill_bubbles[i][j][2] = None    
 
 # Procedure updates falling bubbles which may fall off the screen, hit the 
@@ -416,21 +408,21 @@ def update_droppers():
     #[[x_pos, y_pos, color, vely, column], ...more droppers]
     global score
     cnt = 0
-    while cnt < len(falling_bubbles):
-        fb = falling_bubbles[cnt]
-        if fb[1] > HEIGHT: # fell off screen. Award points and remove
+    while cnt < len(droppers):
+        fb = droppers[cnt]
+        if fb.y > HEIGHT: # fell off screen. Award points and remove
             score += FALLING_BUBBLE_POINTS
-            score_alerts.append([fb[0], fb[1], FALLING_BUBBLE_POINTS, 
+            score_alerts.append([fb.x, fb.y, FALLING_BUBBLE_POINTS, 
                                  SCORE_DURATION, SCORE_VELOCITY])
-            del falling_bubbles[cnt]
+            del droppers[cnt]
         
         # struck the ship or landed back on the kill bubble grid
-        elif hit_ship(fb[0],fb[1], True) or falling_bubble_lands(fb):
-            del falling_bubbles[cnt]
+        elif hit_ship(fb.x,fb.y, True) or falling_bubble_lands(fb):
+            del droppers[cnt]
         
         else: # accelerate normally downward
-            falling_bubbles[cnt][1] += fb[3] * delta[0]
-            falling_bubbles[cnt][3] += BUBBLE_GRAVITY * delta[0]
+            droppers[cnt].y += fb.vely * delta[0]
+            droppers[cnt].vely += BUBBLE_GRAVITY * delta[0]
             cnt += 1
 
 # Function returns True if a falling bubble lands on the kill bubble grid and 
@@ -438,7 +430,7 @@ def update_droppers():
 # Modifies global kill_bubbles to add the faller back to the grid
 def falling_bubble_lands(fb):
     #[x_pos, y_pos, color, vely, column]
-    y, c, j = fb[1], fb[2], fb[4]
+    y, c, j = fb.y, fb.color, fb.column
     d = BUBBLE_DIAMETER + BUBBLE_PADDING
     for i, kb_row in enumerate(kill_bubbles):
         kb = kb_row[j] # only check in the faller's column
@@ -596,9 +588,10 @@ def get_angle(pos):
 
 def next_level():
     global level, bubble_velocity, kill_bubbles, bullets, next_level_points, \
-        falling_bubbles, level_colors, new_level_msg, speed_rows
-    kill_bubbles, falling_bubbles = [], []
-    bullets = Bullets()
+        droppers, level_colors, new_level_msg, speed_rows
+    kill_bubbles = []
+    droppers = Bubble_List()
+    bullets = Bubble_List()
     ship.reset_hull_size()
     level += 1
     new_level_msg = f"Level {level}"
@@ -626,13 +619,13 @@ def clear_new_level_msg():
     
 # Procedure Restarts the game when the 'r' key is pressed
 def initalize_game():
-    global kill_bubbles, falling_bubbles, ship, bullets, score, \
+    global kill_bubbles, droppers, ship, bullets, score, \
     game_state, level_colors, bubble_velocity, level, next_level_points, \
     speed_rows
     
     kill_bubbles = []
-    falling_bubbles = []
-    bullets = Bullets()
+    droppers = Bubble_List()
+    bullets = Bubble_List()
     level_colors = COLOR_LEVELS[0] 
     ship = Ship((WIDTH // 2 + BUBBLE_DIAMETER // 2, HEIGHT - 2*BUBBLE_DIAMETER),
              COLOR_LEVELS[0],

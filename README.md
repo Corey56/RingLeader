@@ -42,6 +42,8 @@ python ring_leader.py
     - Looping through same data structures repetitously?
     - Move to OOP
     - Move to PYGame
+    - Add game options to dictionary
+    - Initialize everything in initialize(globals to None)
 - Game Play
     - Pausing Game pauses level message
     - Choice of 3 random powerups for catching falling bubbles
