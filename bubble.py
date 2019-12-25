@@ -15,20 +15,25 @@ class Bubble(object):
         return type(self).__name__ + ' object:\n' + '\n'.join(atts)
 
     def draw(self, screen):
-        screen.draw.filled_circle((self.x, self.y), 
-                                   Bubble.BUBBLE_DIAMETER//2, 
-                                   self.color)
+        if self.color:
+            screen.draw.filled_circle((self.x, self.y), 
+                                       Bubble.BUBBLE_DIAMETER//2, 
+                                       self.color)
 
 class Bullet(Bubble):
     def __init__(self, x, y, color, ang):
         self.angle = ang
         super().__init__(x, y, color)
-        
+
 class Dropper(Bubble):
-    #falling_bubbles = [] #[[x_pos, y_pos, color, vely, column], ...more droppers]
     def __init__(self, x, y, color, vely, column):
         self.vely = vely
         self.column = column
+        super().__init__(x, y, color)
+        
+class Grid_Bubble(Bubble):
+    def __init__(self, x, y, color, bulletFlag):
+        self.bulletFlag = bulletFlag
         super().__init__(x, y, color)
 
 class Bubble_List(object):
@@ -36,7 +41,7 @@ class Bubble_List(object):
         self.contents = []
     
     def __str__(self):
-        s = 'Bullets Object:\n'
+        s = 'Bubble_List:\n'
         s += '     x pos     y pos     ang   color\n'
         for b in self.contents:
             s += f'{b.x:10.2f}{b.y:10.2f}{b.angle:8.2f}   {b.color}\n'
@@ -66,3 +71,98 @@ class Bubble_List(object):
     def draw(self, screen):
         for b in self.contents: 
             b.draw(screen)
+            
+class Bubble_Grid(object):
+    BUBBLE_PADDING = 4
+    BOARD_WIDTH = 28
+
+    def __init__(self, width):
+        self.width = width
+        self.rows = []
+
+    def __str__(self):
+        s = 'Bubble Grid:\n'
+        for i, b in enumerate(self.contents):
+            s += f'\tRow {i}\n{b}'
+        return s
+
+    def __len__(self):
+        return len(self.rows)
+
+    def __iter__(self):
+        return iter(self.rows)
+
+    def __getitem__(self, key):
+        return self.rows[key]
+
+    def __setitem__(self, key, item):
+        self.rows[key] = item
+
+    def __delitem__(self, key):
+        del self.rows[key]
+
+    def draw(self, screen):
+        for r in self.rows: 
+            r.draw(screen)
+            
+    def addBottomRow(self):
+        nbr = []
+        
+        # base coordinates on current first row bullet
+        x = self.rows[0][0].x
+        y = (self.rows[0][0].y 
+             + Bubble.BUBBLE_DIAMETER 
+             + Bubble_Grid.BUBBLE_PADDING)
+             
+        for j in range(Bubble_Grid.BOARD_WIDTH):
+            # color of None adds blank place holders
+            nbr.append(Grid_Bubble(x,y,None,False))
+            x += Bubble.BUBBLE_DIAMETER + Bubble_Grid.BUBBLE_PADDING
+            
+        self.rows.insert(0, nbr)
+        
+    def findNearestSpot(self, x, y, i, j):
+        n_list = [] #[(dist, (i,j), newRowFlag)...up, down, left, right]
+            
+        row_range = range(len(self.rows))
+        col_range = range(Bubble_Grid.BOARD_WIDTH)
+
+        if i+1 in row_range and not self.rows[i+1][j].color: #up
+            x1 = self.rows[i][j].x
+            y1 = self.rows[i+1][j].y
+            n_list.append((distance(x, y, x1, y1), (i+1,j), False))
+        
+        if j+1 in col_range and not self.rows[i][j+1].color: #right
+            x1 = self.rows[i][j+1].x
+            y1 = self.rows[i][j].y
+            n_list.append((distance(x, y, x1, y1), (i,j+1), False))
+        
+        if j-1 in col_range and not self.rows[i][j-1].color: #left
+            x1 = self.rows[i][j-1].x
+            y1 = self.rows[i][j].y
+            n_list.append((distance(x, y, x1, y1), (i,j-1), False))
+        
+        if i == 0: #new bottom row
+            x1 = self.rows[0][j].x
+            y1 = (self.rows[0][j].y 
+                  + Bubble.BUBBLE_DIAMETER
+                  + Bubble_Grid.BUBBLE_PADDING)
+            n_list.append((distance(x, y, x1, y1), (0, j), True)) 
+        
+        elif i-1 in row_range and not self.rows[i-1][j].color: # down
+            x1 = self.rows[i][j].x
+            y1 = self.rows[i-1][j].y
+            n_list.append((distance(x, y, x1, y1), (i-1,j), False))
+            
+        nearest = min(n_list) # min distance is closest
+        
+        return nearest[1][0], nearest[1][1], nearest[2] # i, j, newRowFlag
+
+
+    def addGridBubble(self, i, j, c, new_row_flag):
+        if new_row_flag: # Add new row if neccessary
+            self.addBottomRow()
+
+        self.rows[i][j].color = c
+        # Player added this bubble so can score points
+        self.rows[i][j].bulletFlag = True
