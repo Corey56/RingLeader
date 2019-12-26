@@ -42,7 +42,7 @@ python ring_leader.py
 - Structure
     - Looping through same data structures repetitously?
     - Move to OOP
-    - Move to PYGame
+    - Move recerase to stack vs recursion
     - Add game options to dictionary
     - Initialize everything in initialize(globals to None)
 - Game Play

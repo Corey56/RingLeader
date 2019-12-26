@@ -10,7 +10,7 @@ def distance(x1, y1, x2, y2):
 
 class Bubble(object):
     BUBBLE_DIAMETER = 32
-    ##[[[x_pos, y_pos, color, wasBullet Flag],...more bubbles] ...more rows]
+    
     def __init__(self, x, y, color):
         self.x = x
         self.y = y
@@ -207,10 +207,6 @@ class Bubble_Grid(object):
         # Player added this bubble so can score points
         self.rows[i][j].bulletFlag = True
 
-    def pruneBottomRow(self, HEIGHT):
-        if self.rows and self.rows[0][0].y > HEIGHT + Bubble.BUBBLE_DIAMETER//2:
-            del self.rows[0]
-            
     def drop_loose_bubbles(self):
         num_rows = len(self)
         col_range = range(Bubble_Grid.BOARD_WIDTH)
@@ -243,7 +239,7 @@ class Bubble_Grid(object):
                 if gb.color and (i,j) not in keep:  # drop any bubbles not in keep list
                     newDroppers += Dropper(gb.x, gb.y, gb.color, self.velocity, j)
                     self.rows[i][j].color = None
-                    
+
         return newDroppers
     
     def get_matches(self):
