@@ -2,6 +2,8 @@
 Ring Leader
 """
 
+from random import choice
+
 class Bubble(object):
     BUBBLE_DIAMETER = 32
     ##[[[x_pos, y_pos, color, wasBullet Flag],...more bubbles] ...more rows]
@@ -61,23 +63,28 @@ class Bubble_List(object):
 
     def __delitem__(self, key):
         del self.contents[key]
-
-    def addBullet(self, x, y, color, ang):
-        self.contents.append(Bullet(x, y, color, ang))
-
-    def addDropper(self, x, y, color, vely, column):
-        self.contents.append(Dropper(x, y, color, vely, column))
+        
+    def __iadd__(self, rhs):
+        if type(rhs) is Bubble_List:
+            self.contents.extend(rhs.contents)
+        else:
+            self.contents.append(rhs)
+        return self
 
     def draw(self, screen):
         for b in self.contents: 
             b.draw(screen)
-            
+
 class Bubble_Grid(object):
     BUBBLE_PADDING = 4
     BOARD_WIDTH = 28
+    MARGINS = 10
+    MATCH_LENGTH = 4
+    INITIAL_BUBBLE_VELOCITY = .0001 * Bubble.BUBBLE_DIAMETER 
 
-    def __init__(self, width):
-        self.width = width
+    def __init__(self, colors):
+        self.colors = colors
+        self.velocity = Bubble_Grid.INITIAL_BUBBLE_VELOCITY
         self.rows = []
 
     def __str__(self):
@@ -104,7 +111,7 @@ class Bubble_Grid(object):
     def draw(self, screen):
         for r in self.rows: 
             r.draw(screen)
-            
+
     def addBottomRow(self):
         nbr = []
         
@@ -134,25 +141,24 @@ class Bubble_Grid(object):
         else:
             y = self.rows[-1][0].y - (Bubble_Grid.BUBBLE_PADDING
                                       + Bubble.BUBBLE_DIAMETER)
-        x = MARGINS + BUBBLE_DIAMETER // 2 # First column
-        nbr = []
-        nb = [x, y, random.choice(level_colors), False]
-        nbr.append(nb)
-        x += BUBBLE_PADDING + BUBBLE_DIAMETER
-        last_color = nb[2] # Track this to ensure no horizontal matches
+        x = Bubble_Grid.MARGINS + Bubble.BUBBLE_DIAMETER // 2 # First column
+        nbr = Bubble_List()
+        nbr.addGridBubble(x, y, choice(self.colors), False)
+        x += Bubble_Grid.BUBBLE_PADDING + Bubble.BUBBLE_DIAMETER
+        last_color = nbr[0].color # Track this to ensure no horizontal matches
         consec = 1
-        for j in range(BOARD_WIDTH-1):
-            c = random.choice(level_colors)
-            while consec == MATCH_LENGTH-1 and c == last_color:
-                c = random.choice(level_colors)
+        for j in range(Bubble_Grid.BOARD_WIDTH-1):
+            c = choice(self.colors)
+            while consec == Bubble_Grid.MATCH_LENGTH-1 and c == last_color:
+                c = random.choice(self.colors)
             if last_color == c:
                 consec += 1
             else:
                 consec = 1
                 last_color = c
-            nbr.append([x, y, c, False])
-            x += BUBBLE_PADDING + BUBBLE_DIAMETER
-        kill_bubbles.append(nbr)
+            nbr.addGridBubble(x, y, c, False)
+            x += Bubble_Grid.BUBBLE_PADDING + Bubble.BUBBLE_DIAMETER
+        self.rows.append(nbr)
         
     def findNearestSpot(self, x, y, i, j):
         n_list = [] #[(dist, (i,j), newRowFlag)...up, down, left, right]
@@ -188,7 +194,7 @@ class Bubble_Grid(object):
             n_list.append((distance(x, y, x1, y1), (i-1,j), False))
             
         nearest = min(n_list) # min distance is closest
-        
+
         return nearest[1][0], nearest[1][1], nearest[2] # i, j, newRowFlag
 
 
@@ -203,3 +209,85 @@ class Bubble_Grid(object):
     def pruneBottomRow(self, HEIGHT):
         if self.rows and self.rows[0][0].y > HEIGHT + Bubble.BUBBLE_DIAMETER//2:
             del self.rows[0]
+            
+    def drop_loose_bubbles(self):
+        num_rows = len(self)
+        col_range = range(Bubble_Grid.BOARD_WIDTH)
+        keep = [] #Bubbles connected to top row [(i,j), ...]
+        for j in col_range:
+            i = num_rows-1 # loop through top row of bubbles
+            if not self.rows[i][j].color: # No color == No bubble
+                continue
+
+            path = [(i,j)] #stack to track path to every bubble reachable
+            while path:
+                check = path.pop()
+                if check in keep: #No need to visit a bubble twice
+                    continue
+                keep.append(check) # Bubble is reachable
+                i,j = check # Try all four neighbors
+                if i-1 >= 0 and self.rows[i-1][j].color: #South
+                    path.append((i-1,j))
+                if i+1 < num_rows and self.rows[i+1][j].color: #North
+                    path.append((i+1,j))
+                if j-1 in col_range and self.rows[i][j-1].color: #West
+                    path.append((i,j-1))
+                if j+1 in col_range and self.rows[i][j+1].color: #East
+                    path.append((i,j+1))
+
+        newDroppers = Bubble_List()
+        for i in range(num_rows):
+            for j in col_range:   # loop through all kill bubbles except top row
+                gb = self.rows[i][j]
+                if gb.color and (i,j) not in keep:  # drop any bubbles not in keep list
+                    newDroppers += Dropper(gb.x, gb.y, gb.color, self.velocity, j)
+                    self.rows[i][j].color = None
+                    
+        return newDroppers
+    
+    def get_matches(self):
+        if not self.rows:
+            return
+
+        row_range = range(len(self.rows))
+        
+        matches = [] #[(i,j), ...]
+        for i in row_range:
+            curr_color = None
+            count = 0
+            for j in range(Bubble_Grid.BOARD_WIDTH):
+                tbc = self.rows[i][j].color
+                if not tbc:
+                    curr_color = None
+                    count = 0
+                    continue
+                
+                if tbc == curr_color:
+                    count += 1
+                else:
+                    curr_color = tbc
+                    count = 1
+                
+                if count >= Bubble_Grid.MATCH_LENGTH:
+                    matches.append((i,j))
+
+        for j in range(Bubble_Grid.BOARD_WIDTH):
+            curr_color = None
+            count = 0
+            for i in row_range:
+                tbc = self.rows[i][j].color
+                if not tbc:
+                    curr_color = None
+                    count = 0
+                    continue
+                
+                if tbc == curr_color:
+                    count += 1
+                else:
+                    curr_color = tbc
+                    count = 1
+                
+                if count >= Bubble_Grid.MATCH_LENGTH:
+                    matches.append((i,j))
+        
+        return matches

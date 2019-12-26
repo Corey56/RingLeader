@@ -8,7 +8,7 @@ import math
 from pygame.time import Clock
 
 from ship import Ship
-from bubble import Bubble_List
+from bubble import Bubble_List, Bullet, Dropper
 
 # Configuration Constants-------------------------------------------------------
 BUBBLE_DIAMETER = 32 #Diameter of a Grid Bubble in pixels
@@ -366,6 +366,7 @@ def update_kill_bubbles():
 #  into falling bubbles.
 # Modifies globals kill_bubbles and falling_bubbles
 def drop_loose_bubbles():
+    global droppers
     num_rows = len(kill_bubbles)
     col_range = range(BOARD_WIDTH)
     keep = [] #Bubbles connected to top row [(i,j), ...]
@@ -395,7 +396,7 @@ def drop_loose_bubbles():
             kb = kill_bubbles[i][j]
             if kb[2] and (i,j) not in keep:  # drop any bubbles not in keep list
                 x, y, c = kb[0], kb[1], kb[2] #add new bubble to fallers
-                droppers.addDropper(x, y, c, bubble_velocity, j)
+                droppers += Dropper(x, y, c, bubble_velocity, j)
                 kill_bubbles[i][j][2] = None    
 
 # Procedure updates falling bubbles which may fall off the screen, hit the 
@@ -524,7 +525,6 @@ def delete_bubble_matches():
         combo_bubbles = 0
         rec_erase(i,j)
         if combo_bullets and combo_bubbles:
-            over_match = combo_bubbles
             bonus = 2**combo_bubbles
             score_diff = next_level_points - score
             if bonus > score_diff:
@@ -558,9 +558,9 @@ def on_mouse_move (pos):
     cross_hair = pos
 
 def on_mouse_down (pos, button):
-    global bubble_velocity, speed_rows
+    global bubble_velocity, speed_rows, bullets
     if mouse.LEFT == button:
-        bullets.addBullet(ship.x, ship.y, ship.get_color(), get_angle(pos))
+        bullets += Bullet(ship.x, ship.y, ship.get_color(), get_angle(pos))
     if mouse.RIGHT == button:
         speed_rows += 1
 
