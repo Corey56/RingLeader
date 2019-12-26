@@ -121,6 +121,39 @@ class Bubble_Grid(object):
             
         self.rows.insert(0, nbr)
         
+    def addTopRow(self, speed_rows):
+        if (self.rows and self.rows[-1][0].y 
+                < Bubble.BUBBLE_DIAMETER//2 + Bubble_Grid.BUBBLE_PADDING):
+            return
+        
+        if speed_rows:
+            speed_rows -=1
+            
+        if not self.rows:
+            y = -BUBBLE_DIAMETER // 2 #Barely off the screen
+        else:
+            y = self.rows[-1][0].y - (Bubble_Grid.BUBBLE_PADDING
+                                      + Bubble.BUBBLE_DIAMETER)
+        x = MARGINS + BUBBLE_DIAMETER // 2 # First column
+        nbr = []
+        nb = [x, y, random.choice(level_colors), False]
+        nbr.append(nb)
+        x += BUBBLE_PADDING + BUBBLE_DIAMETER
+        last_color = nb[2] # Track this to ensure no horizontal matches
+        consec = 1
+        for j in range(BOARD_WIDTH-1):
+            c = random.choice(level_colors)
+            while consec == MATCH_LENGTH-1 and c == last_color:
+                c = random.choice(level_colors)
+            if last_color == c:
+                consec += 1
+            else:
+                consec = 1
+                last_color = c
+            nbr.append([x, y, c, False])
+            x += BUBBLE_PADDING + BUBBLE_DIAMETER
+        kill_bubbles.append(nbr)
+        
     def findNearestSpot(self, x, y, i, j):
         n_list = [] #[(dist, (i,j), newRowFlag)...up, down, left, right]
             
@@ -159,10 +192,14 @@ class Bubble_Grid(object):
         return nearest[1][0], nearest[1][1], nearest[2] # i, j, newRowFlag
 
 
-    def addGridBubble(self, i, j, c, new_row_flag):
+    def addGridBubble(self, i, j, new_row_flag, c):
         if new_row_flag: # Add new row if neccessary
             self.addBottomRow()
 
         self.rows[i][j].color = c
         # Player added this bubble so can score points
         self.rows[i][j].bulletFlag = True
+
+    def pruneBottomRow(self, HEIGHT):
+        if self.rows and self.rows[0][0].y > HEIGHT + Bubble.BUBBLE_DIAMETER//2:
+            del self.rows[0]
