@@ -4,6 +4,10 @@ Ring Leader
 
 from random import choice
 
+# Function returns euclidian distance between 2 given points
+def distance(x1, y1, x2, y2):
+    return ((x1-x2)**2 + (y1-y2)**2)**.5
+
 class Bubble(object):
     BUBBLE_DIAMETER = 32
     ##[[[x_pos, y_pos, color, wasBullet Flag],...more bubbles] ...more rows]
@@ -82,9 +86,13 @@ class Bubble_Grid(object):
     MATCH_LENGTH = 4
     INITIAL_BUBBLE_VELOCITY = .0001 * Bubble.BUBBLE_DIAMETER 
 
-    def __init__(self, colors):
+    def __init__(self, colors, velocity=None):
+        if velocity:
+            self.velocity = velocity
+        else:
+            self.velocity = Bubble_Grid.INITIAL_BUBBLE_VELOCITY
+        
         self.colors = colors
-        self.velocity = Bubble_Grid.INITIAL_BUBBLE_VELOCITY
         self.rows = []
 
     def __str__(self):
@@ -113,7 +121,7 @@ class Bubble_Grid(object):
             r.draw(screen)
 
     def addBottomRow(self):
-        nbr = []
+        nbr = Bubble_List()
         
         # base coordinates on current first row bullet
         x = self.rows[0][0].x
@@ -123,40 +131,33 @@ class Bubble_Grid(object):
              
         for j in range(Bubble_Grid.BOARD_WIDTH):
             # color of None adds blank place holders
-            nbr.append(Grid_Bubble(x,y,None,False))
+            nbr += Grid_Bubble(x,y,None,False)
             x += Bubble.BUBBLE_DIAMETER + Bubble_Grid.BUBBLE_PADDING
             
         self.rows.insert(0, nbr)
         
-    def addTopRow(self, speed_rows):
-        if (self.rows and self.rows[-1][0].y 
-                < Bubble.BUBBLE_DIAMETER//2 + Bubble_Grid.BUBBLE_PADDING):
-            return
-        
-        if speed_rows:
-            speed_rows -=1
-            
+    def addTopRow(self):
         if not self.rows:
-            y = -BUBBLE_DIAMETER // 2 #Barely off the screen
+            y = -Bubble.BUBBLE_DIAMETER // 2 #Barely off the screen
         else:
             y = self.rows[-1][0].y - (Bubble_Grid.BUBBLE_PADDING
                                       + Bubble.BUBBLE_DIAMETER)
         x = Bubble_Grid.MARGINS + Bubble.BUBBLE_DIAMETER // 2 # First column
         nbr = Bubble_List()
-        nbr.addGridBubble(x, y, choice(self.colors), False)
+        nbr += Grid_Bubble(x, y, choice(self.colors), False)
         x += Bubble_Grid.BUBBLE_PADDING + Bubble.BUBBLE_DIAMETER
         last_color = nbr[0].color # Track this to ensure no horizontal matches
         consec = 1
         for j in range(Bubble_Grid.BOARD_WIDTH-1):
             c = choice(self.colors)
             while consec == Bubble_Grid.MATCH_LENGTH-1 and c == last_color:
-                c = random.choice(self.colors)
+                c = choice(self.colors)
             if last_color == c:
                 consec += 1
             else:
                 consec = 1
                 last_color = c
-            nbr.addGridBubble(x, y, c, False)
+            nbr += Grid_Bubble(x, y, c, False)
             x += Bubble_Grid.BUBBLE_PADDING + Bubble.BUBBLE_DIAMETER
         self.rows.append(nbr)
         

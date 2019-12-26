@@ -19,6 +19,7 @@ python ring_leader.py
 - Space Bar cycles available colors
 - Right click to speed out the next row
 - p to pause
+- r to restart
 
 ### Gameplay
 - Fire bubbles to make rows and columns of 

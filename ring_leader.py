@@ -3,28 +3,21 @@ Ring Leader
 """
 
 import pgzrun
-import random
-import math
+from math import sin, cos, atan2
 from pygame.time import Clock
 
 from ship import Ship
-from bubble import Bubble_List, Bullet, Dropper
+from bubble import Bubble_Grid, Bubble_List, Bubble, Bullet, Dropper, distance
 
 # Configuration Constants-------------------------------------------------------
-BUBBLE_DIAMETER = 32 #Diameter of a Grid Bubble in pixels
-BUBBLE_PADDING = 4 #Vertical and Horizontal space between grid bubbles in pixels
 BOARD_HEIGHT = 20 #Height of screen in Bubbles
-BOARD_WIDTH = 28 #Width of screen in bubbles
-MARGINS = 10 #distance between horizontal edges and 1st, last bubble in a row
-#Inital Fall fall/spawn speed of grid bubbles
-INITIAL_BUBBLE_VELOCITY = .0001 *BUBBLE_DIAMETER 
-MATCH_LENGTH = 4 # number of consecutive bubbles in a row/col to match
 # Total Width of the screen based on bubbles
-WIDTH = (BUBBLE_DIAMETER * BOARD_WIDTH 
-         + BUBBLE_PADDING * (BOARD_WIDTH-1) 
-         + MARGINS * 2)
+WIDTH = (Bubble.BUBBLE_DIAMETER * Bubble_Grid.BOARD_WIDTH 
+         + Bubble_Grid.BUBBLE_PADDING * (Bubble_Grid.BOARD_WIDTH-1) 
+         + Bubble_Grid.MARGINS * 2)
 # Total Height of the screen based on bubbles
-HEIGHT = BUBBLE_DIAMETER*BOARD_HEIGHT + BUBBLE_PADDING * BOARD_HEIGHT
+HEIGHT = (Bubble.BUBBLE_DIAMETER*BOARD_HEIGHT 
+          + Bubble_Grid.BUBBLE_PADDING * BOARD_HEIGHT)
 
 BLACK = (0,0,0)       # Background Color
 
@@ -67,8 +60,8 @@ press 'r' to play again"""
 COLOR_LEVELS = [[(173, 207, 25),(25, 207, 195),(186, 25, 207)], # 3 color
            [(207, 195, 25),(25, 207, 55),(25, 70, 207),(198, 25, 207)], #4 color
   [(199, 196, 28),(37, 199, 28),(28, 199, 193),(65, 28, 199),(199, 28, 188)]] #5
-BULLET_VELOCITY = .02 * BUBBLE_DIAMETER # constant speed of a fired bullet
-HIT_GROW = BUBBLE_DIAMETER//4 #Ship growth when struck by a falling bubble
+BULLET_VELOCITY = .02 * Bubble.BUBBLE_DIAMETER # constant speed of a fired bullet
+HIT_GROW = Bubble.BUBBLE_DIAMETER//4 #Ship growth when struck by a falling bubble
 SCORE_VELOCITY = -.02 # Constant upward movement of score alerts
 SCORE_DURATION = 40 # Update cycles to display score alerts
 SHIP_ACCEL = .0003 # When W,A,S,D depressed, speedup this much, decel on release
@@ -77,41 +70,37 @@ FALLING_BUBBLE_POINTS = 4 # Points received for a falling bubble
 LOST_BULLET_PENALTY = -4 # Points lost for an errant bullet
 
 # Global Data Structures--------------------------------------------------------
-# list of rows of bullets in a grid that spawn slowly at top of screen
-#[[[x_pos, y_pos, color, wasBullet Flag],...more bubbles] ...more rows]
-kill_bubbles = []
-debug_kb = False # i key toggles 
+bubble_grid = Bubble_Grid(COLOR_LEVELS[0])
 # list of all bubbles broken free from grid and falling 
 droppers = Bubble_List()
 # List of bullets fired from the player's ship
-#bullets = [] #[[x_pos, y_pos, angle, color], ...more bullets]
 bullets = Bubble_List()
+
 level_colors = COLOR_LEVELS[0] #start with 3 colors and increase
 
-ship = Ship((WIDTH // 2 + BUBBLE_DIAMETER // 2, HEIGHT - 2*BUBBLE_DIAMETER),
+ship = Ship((WIDTH // 2 + Bubble.BUBBLE_DIAMETER // 2, 
+             HEIGHT - 2*Bubble.BUBBLE_DIAMETER),
              COLOR_LEVELS[0],
-             BUBBLE_DIAMETER,
-             SHIP_ACCEL*BUBBLE_DIAMETER)
+             Bubble.BUBBLE_DIAMETER,
+             SHIP_ACCEL*Bubble.BUBBLE_DIAMETER)
 # Displayed briefly on screen when points are earned/lost
 score_alerts = [] #[[x_pos, y_pos, msg, duration, velocity], ...more alerts]
 cross_hair = (0,0) #starts here and follows mouse
 score = 0
-bubble_velocity = INITIAL_BUBBLE_VELOCITY #bubbles spawn faster as game progress
 combo_bullets = 0 #global for counting user bullets in combos
 combo_bubbles = 0 #global to track if matched bubbles score points
 game_state = 1 #1: Normal Play, 0: Game Over, 3: Paused, 5: Instruction Screen
 level = 1 # Levels progresses with player score
 next_level_points = 500 # To get to level 2
-level_colors = COLOR_LEVELS[0] # Start with 3 colors
 new_level_msg = None # Displayed briefly at level changes
 c = Clock()
 delta = [0]
-speed_rows = MATCH_LENGTH
+speed_rows = Bubble_Grid.MATCH_LENGTH
 
 # PGZero's global draw() function
 def draw():
     screen.fill(BLACK) # Background
-    draw_bubbles()
+    bubble_grid.draw(screen)
     ship.draw(screen)
     bullets.draw(screen)
     droppers.draw(screen)
@@ -146,22 +135,11 @@ def draw_score_alerts():
 def draw_cross_hair():
     x, y = cross_hair
     c = ship.get_color()
-    screen.draw.line((x-BUBBLE_DIAMETER//2, y), (x-BUBBLE_DIAMETER//4, y), c)
-    screen.draw.line((x+BUBBLE_DIAMETER//2, y), (x+BUBBLE_DIAMETER//4, y), c)
-    screen.draw.line((x, y-BUBBLE_DIAMETER//2), (x, y-BUBBLE_DIAMETER//4), c)
-    screen.draw.line((x, y+BUBBLE_DIAMETER//2), (x, y+BUBBLE_DIAMETER//4), c)
-
-# Procedure draws grid of kill bubbles
-def draw_bubbles():
-    #[[[x_pos, y_pos, color, wasBullet Flag],...more bubbles] ...more rows]
-    for i, row in enumerate(kill_bubbles):
-        for j, b in enumerate(row):
-            x, y, c = b[0], b[1], b[2]
-            if c:
-                screen.draw.filled_circle((x,y),BUBBLE_DIAMETER//2, c)
-            elif debug_kb: #Bullet with no color is an empty grid space
-                screen.draw.text(str(i)+'\n'+str(j), centery=y, centerx=x, 
-                                  fontsize=11)
+    b = Bubble.BUBBLE_DIAMETER
+    screen.draw.line((x-b//2, y), (x-b//4, y), c)
+    screen.draw.line((x+b//2, y), (x+b//4, y), c)
+    screen.draw.line((x, y-b//2), (x, y-b//4), c)
+    screen.draw.line((x, y+b//2), (x, y+b//4), c)
 
 # PGZero's global update game loop
 def update():
@@ -203,8 +181,8 @@ def update_bullets():
     #[[x_pos, y_pos, angle, color], ...more bullets]
     while cnt < len(bullets):
         b = bullets[cnt]
-        new_x = b.x + BULLET_VELOCITY * math.cos(b.angle) * delta[0] # x vector change
-        new_y = b.y - BULLET_VELOCITY * math.sin(b.angle) * delta[0] # y vector change
+        new_x = b.x + BULLET_VELOCITY * cos(b.angle) * delta[0] # x vector change
+        new_y = b.y - BULLET_VELOCITY * sin(b.angle) * delta[0] # y vector change
         
         # Check for bullet off screen
         if new_x > WIDTH or new_x < 0 or new_y > HEIGHT or new_y < 0:
@@ -229,13 +207,13 @@ def update_bullets():
 #  the bullet to the kill bubble grid.
 def bullet_collide(x, y, c):
     close_bubble = None #(i,j,dist)
-    for i, row in enumerate(kill_bubbles):
-        for j, bub in enumerate(row):
+    for i, row in enumerate(bubble_grid):
+        for j, b in enumerate(row):
             # Use is_close() to find potential matches (city block distance)
-            if bub[2] and is_close(x, y, bub[0], bub[1], BUBBLE_DIAMETER):
+            if b.color and is_close(x, y, b.x, b.y, Bubble.BUBBLE_DIAMETER):
                 # Use euclidian distance for precision
-                d = distance(x, y, bub[0], bub[1])
-                if d < BUBBLE_DIAMETER:
+                d = distance(x, y, b.x, b.y)
+                if d < Bubble.BUBBLE_DIAMETER:
                     # find the closest bubble if multiple in range
                     if close_bubble:
                         if d < close_bubble[2]:
@@ -244,77 +222,18 @@ def bullet_collide(x, y, c):
                         close_bubble = (i,j,d)
 
     if close_bubble: # collided with this kill bubble
-        assimilate_bullet(x, y, c, close_bubble) #add bubble to kill grid
+        n = bubble_grid.findNearestSpot(x, y, close_bubble[0], close_bubble[1])
+        bubble_grid.addGridBubble(*n, c)
+        #assimilate_bullet(x, y, c, close_bubble) #add bubble to kill grid
         return True
     return False
 
-# Procedure adds a bullet to the closest available spot in the kill bubble grid.
-# Modifies global kill_bubbles
-# Calls distance() to find the closest available spot
-# Calls add_bottom_kill_row() if neccessary to place the new bubble
-def assimilate_bullet(x, y, c, c_b_index):
-    i, j, d = c_b_index
-    n_list = [] #[(dist, (i,j), newRowFlag)...up, down, left, right]
-        
-    row_range = range(len(kill_bubbles))
-    col_range = range(BOARD_WIDTH)
-
-    if i+1 in row_range and not kill_bubbles[i+1][j][2]: #up
-        x1 = kill_bubbles[i][j][0]
-        y1 = kill_bubbles[i+1][j][1]
-        n_list.append((distance(x, y, x1, y1), (i+1,j), False))
-    if j+1 in col_range and not kill_bubbles[i][j+1][2]: #right
-        x1 = kill_bubbles[i][j+1][0]
-        y1 = kill_bubbles[i][j][1]
-        n_list.append((distance(x, y, x1, y1), (i,j+1), False))
-    if j-1 in col_range and not kill_bubbles[i][j-1][2]: #left
-        x1 = kill_bubbles[i][j-1][0]
-        y1 = kill_bubbles[i][j][1]
-        n_list.append((distance(x, y, x1, y1), (i,j-1), False))
-    if i == 0: #new bottom row
-        x1 = kill_bubbles[0][j][0]
-        y1 = kill_bubbles[0][j][1] + BUBBLE_DIAMETER+BUBBLE_PADDING
-        n_list.append((distance(x, y, x1, y1), (0, j), True)) 
-    elif i-1 in row_range and not kill_bubbles[i-1][j][2]: # down
-        x1 = kill_bubbles[i][j][0]
-        y1 = kill_bubbles[i-1][j][1]
-        n_list.append((distance(x, y, x1, y1), (i-1,j), False))
-        
-    new_spot = min(n_list) # min distance is closest
-    
-    if new_spot[2]: # Add new row if neccessary
-        add_bottom_kill_row()
-    
-    i = new_spot[1][0]
-    j = new_spot[1][1]
-    kill_bubbles[i][j][2] = c
-    kill_bubbles[i][j][3] = True # Player added this bubble so can score points
-
-# Procedure adds a new bottom row to the kill bubble grid to assimilate a new
-#  bubble.
-# Modifies global kill_bubbles
-def add_bottom_kill_row():
-    nbr = []
-    # base coordinates on current first row bullet
-    x = kill_bubbles[0][0][0]
-    y = kill_bubbles[0][0][1] + BUBBLE_DIAMETER+BUBBLE_PADDING
-    for j in range(BOARD_WIDTH):
-        nbr.append([x,y,None,False]) # color of None adds blank place holders
-        x += BUBBLE_DIAMETER+BUBBLE_PADDING
-        
-    kill_bubbles.insert(0, nbr)
-    
 # Function computes lightweight city block proximity given 2 coordinates and a 
 #  distance. Returns true if the two points are closer or equal to distance.
 def is_close(x1, y1, x2, y2, d):
     if abs(y1-y2) <= d and abs(x1-x2) <= d:
         return True
     return False
-
-# Function returns euclidian distance between 2 given points
-def distance(x1, y1, x2, y2):
-    return ((x1-x2)**2 + (y1-y2)**2)**.5
-
 
 # Function returns boolean indicating if the player's ship collides with the 
 #  kill bubble grid or a falling bubble given a coordinate and a flag which
@@ -324,7 +243,7 @@ def distance(x1, y1, x2, y2):
 # Modifies the global game_state on collision with bubble grid
 def hit_ship(x, y, g):
     global game_state
-    kill_zone = ship.current_radius+BUBBLE_DIAMETER//2
+    kill_zone = ship.current_radius+Bubble.BUBBLE_DIAMETER//2
     sx, sy = ship.x, ship.y
     if is_close(sx, sy, x, y, kill_zone):
         d = distance(sx, sy, x, y)
@@ -345,59 +264,34 @@ def hit_ship(x, y, g):
 # 6. Call drop_loose_bubbles() to drop bubbles not connected to top row of grid
 # Modifies global kill_bubbles
 def update_kill_bubbles():
-    global speed_rows
-    if kill_bubbles and kill_bubbles[0][0][1] > HEIGHT + BUBBLE_DIAMETER//2:
-        del kill_bubbles[0]
-    if not kill_bubbles or \
-           kill_bubbles[-1][0][1] >= BUBBLE_DIAMETER//2 + BUBBLE_PADDING:
-        add_bubble_row()
-    for row in kill_bubbles:
-        for bubb in row:
-            if bubb[2]: # Only bubbles with a color 'exist'
-                hit_ship(bubb[0],bubb[1], False)
-            if speed_rows:
-                bubb[1] += bubble_velocity * delta[0] * 10
-            else:
-                bubb[1] += bubble_velocity * delta[0]
+    global speed_rows, droppers
+    
+    if bubble_grid and bubble_grid[0][0].y > HEIGHT + Bubble.BUBBLE_DIAMETER//2:
+        del bubble_grid[0] # fell off screen
+        
+    # add a new row at top of screen
+    if not bubble_grid or \
+           bubble_grid[-1][0].y >= Bubble.BUBBLE_DIAMETER//2 \
+                                   + Bubble_Grid.BUBBLE_PADDING:
+        
+        if speed_rows: # speed out a few rows at level begining
+            speed_rows -=1
+
+        bubble_grid.addTopRow()
+
+    delta_y = bubble_grid.velocity * delta[0]
+    if speed_rows:
+        delta_y *= 16
+    for row in bubble_grid:
+        for b in row:
+            if b.color: # Only bubbles with a color 'exist'
+                hit_ship(b.x, b.y, False)
+            
+            b.y += delta_y
+            
     delete_bubble_matches()
-    drop_loose_bubbles()
-
-# Procedure checks for kill bubbles not connected with top row and turns them 
-#  into falling bubbles.
-# Modifies globals kill_bubbles and falling_bubbles
-def drop_loose_bubbles():
-    global droppers
-    num_rows = len(kill_bubbles)
-    col_range = range(BOARD_WIDTH)
-    keep = [] #Bubbles connected to top row [(i,j), ...]
-    for j in col_range:
-        i = num_rows-1 # loop through top row of bubbles
-        if not kill_bubbles[i][j][2]: # No color == No bubble
-            continue
-
-        path = [(i,j)] #stack to track path to every bubble reachable
-        while path:
-            check = path.pop()
-            if check in keep: #No need to visit a bubble twice
-                continue
-            keep.append(check) # Bubble is reachable
-            i,j = check # Try all four neighbors
-            if i-1 >= 0 and kill_bubbles[i-1][j][2]: #South
-                path.append((i-1,j))
-            if i+1 < num_rows and kill_bubbles[i+1][j][2]: #North
-                path.append((i+1,j))
-            if j-1 in col_range and kill_bubbles[i][j-1][2]: #West
-                path.append((i,j-1))
-            if j+1 in col_range and kill_bubbles[i][j+1][2]: #East
-                path.append((i,j+1))
-
-    for i in range(num_rows):
-        for j in col_range:   # loop through all kill bubbles
-            kb = kill_bubbles[i][j]
-            if kb[2] and (i,j) not in keep:  # drop any bubbles not in keep list
-                x, y, c = kb[0], kb[1], kb[2] #add new bubble to fallers
-                droppers += Dropper(x, y, c, bubble_velocity, j)
-                kill_bubbles[i][j][2] = None    
+    
+    droppers += bubble_grid.drop_loose_bubbles()
 
 # Procedure updates falling bubbles which may fall off the screen, hit the 
 #  player's ship, or land back on the kill bubble grid. Points are awarded for
@@ -428,99 +322,25 @@ def update_droppers():
 
 # Function returns True if a falling bubble lands on the kill bubble grid and 
 #  false otherwise.
-# Modifies global kill_bubbles to add the faller back to the grid
 def falling_bubble_lands(fb):
-    #[x_pos, y_pos, color, vely, column]
     y, c, j = fb.y, fb.color, fb.column
-    d = BUBBLE_DIAMETER + BUBBLE_PADDING
-    for i, kb_row in enumerate(kill_bubbles):
-        kb = kb_row[j] # only check in the faller's column
-        if kb[2] and abs(kb[1] - y) <= d:
-            kill_bubbles[i+1][j][2] = c
+    d = Bubble.BUBBLE_DIAMETER + Bubble_Grid.BUBBLE_PADDING
+    for i, row in enumerate(bubble_grid):
+        b = row[j] # only check in the faller's column
+        if b.color and abs(b.y - y) <= d:
+            bubble_grid[i+1][j].color = c
             return True
     return False
 
-# Procedure adds a new top row of random colored bubbles just above the top of
-#  the screen. The new row contains no horizontal color matches.
-# Modifies global kill_bubbles
-def add_bubble_row():
-    global speed_rows
-    if speed_rows:
-        speed_rows -=1
-    if not kill_bubbles:
-        y = -BUBBLE_DIAMETER // 2 #Barely off the screen
-    else:
-        y = kill_bubbles[-1][0][1] - (BUBBLE_PADDING + BUBBLE_DIAMETER)
-    x = MARGINS + BUBBLE_DIAMETER // 2 # First column
-    nbr = []
-    nb = [x, y, random.choice(level_colors), False]
-    nbr.append(nb)
-    x += BUBBLE_PADDING + BUBBLE_DIAMETER
-    last_color = nb[2] # Track this to ensure no horizontal matches
-    consec = 1
-    for j in range(BOARD_WIDTH-1):
-        c = random.choice(level_colors)
-        while consec == MATCH_LENGTH-1 and c == last_color:
-            c = random.choice(level_colors)
-        if last_color == c:
-            consec += 1
-        else:
-            consec = 1
-            last_color = c
-        nbr.append([x, y, c, False])
-        x += BUBBLE_PADDING + BUBBLE_DIAMETER
-    kill_bubbles.append(nbr)
-
-
 def delete_bubble_matches():
-    if not kill_bubbles:
-        return
-
-    row_range = range(len(kill_bubbles))
+    global score, combo_bullets, combo_bubbles
     
-    matched_bubbles = []
-    for i in row_range:
-        curr_color = None
-        count = 0
-        for j in range(BOARD_WIDTH):
-            if not kill_bubbles[i][j][2]:
-                curr_color = None
-                count = 0
-                continue
-            tbc = kill_bubbles[i][j][2]
-            if tbc == curr_color:
-                count += 1
-            else:
-                curr_color = tbc
-                count = 1
-            if count == MATCH_LENGTH:
-                matched_bubbles.append((i,j))
-            elif count > MATCH_LENGTH:
-                matched_bubbles.remove((i,j-1))
-                matched_bubbles.append((i,j))
-                
-    for j in range(BOARD_WIDTH):
-        curr_color = None
-        count = 0
-        for i in row_range:
-            if not kill_bubbles[i][j][2]:
-                curr_color = None
-                count = 0
-                continue
-            tbc = kill_bubbles[i][j][2]
-            if tbc == curr_color:
-                count += 1
-            else:
-                curr_color = tbc
-                count = 1
-            if count == MATCH_LENGTH:
-                matched_bubbles.append((i,j))
-            elif count > MATCH_LENGTH:
-                matched_bubbles.remove((i-1,j))
-                matched_bubbles.append((i,j))
-                
-    global score, combo_bullets, combo_bubbles, bubble_velocity
-    for i, j in matched_bubbles:
+    if not bubble_grid:
+        return
+    
+    matches = bubble_grid.get_matches()
+
+    for i, j in matches:
         combo_bullets = 0
         combo_bubbles = 0
         rec_erase(i,j)
@@ -530,27 +350,31 @@ def delete_bubble_matches():
             if bonus > score_diff:
                 bonus = score_diff
             score += bonus
-            x,y = kill_bubbles[i][j][0], kill_bubbles[i][j][1]
+            x, y = bubble_grid[i][j].x, bubble_grid[i][j].y
             score_alerts.append([x, y, bonus, 
                                  SCORE_DURATION, SCORE_VELOCITY])
 
 def rec_erase(i,j):
-    if not kill_bubbles[i][j][2]:
-        return False
     global combo_bubbles, combo_bullets
-    c = kill_bubbles[i][j][2]
-    if kill_bubbles[i][j][3]:
+    
+    c = bubble_grid[i][j].color
+    
+    if not c:
+        return    
+
+    if bubble_grid[i][j].bulletFlag:
         combo_bullets += 1
     else:
         combo_bubbles += 1
-    kill_bubbles[i][j][2] = None
+    
+    bubble_grid[i][j].color = None
+    
     n = ((i+1,j), (i-1,j), (i, j+1), (i, j-1))
     for nei in n:
         i, j = nei
-        if (i in range(len(kill_bubbles)) 
-                and j in range(BOARD_WIDTH)
-                and kill_bubbles[i][j][2]
-                and c == kill_bubbles[i][j][2]):
+        if (i in range(len(bubble_grid)) 
+                and j in range(Bubble_Grid.BOARD_WIDTH)
+                and bubble_grid[i][j].color == c):
             rec_erase(i, j)
 
 def on_mouse_move (pos):
@@ -565,7 +389,7 @@ def on_mouse_down (pos, button):
         speed_rows += 1
 
 def on_key_down(key):
-    global game_state, debug_kb
+    global game_state
     if key == keys.SPACE:
         ship.cycle_color()
     if key == keys.P:
@@ -580,28 +404,23 @@ def on_key_down(key):
             game_state = 5
         elif game_state == 5:
             game_state = 3
-    if key == keys.K:
-        debug_kb = not debug_kb
 
 def get_angle(pos):
-    return math.atan2(ship.y - pos[1], - (ship.x - pos[0]))
+    return atan2(ship.y - pos[1], - (ship.x - pos[0]))
 
 def next_level():
-    global level, bubble_velocity, kill_bubbles, bullets, next_level_points, \
-        droppers, level_colors, new_level_msg, speed_rows
-    kill_bubbles = []
+    global level, bubble_velocity, bubble_grid, bullets, next_level_points, \
+        droppers, new_level_msg, speed_rows, level_colors
+    
     droppers = Bubble_List()
     bullets = Bubble_List()
     ship.reset_hull_size()
     level += 1
-    new_level_msg = f"Level {level}"
-    obv = INITIAL_BUBBLE_VELOCITY+(INITIAL_BUBBLE_VELOCITY * ((level-1) * .1))
-    bubble_velocity = INITIAL_BUBBLE_VELOCITY+(INITIAL_BUBBLE_VELOCITY * (level * .1))
-    bv_change = (bubble_velocity-obv)/obv
-    speed_rows = MATCH_LENGTH
-    if bv_change:
-        new_level_msg += f'\nBubble Creation Rate +{bv_change:.0%}'
+    speed_rows = Bubble_Grid.MATCH_LENGTH
     next_level_points += 250 * level
+    
+    new_level_msg = f"Level {level}\nBubble Creation Rate +10%"
+    
     if level == 5:
         level_colors = COLOR_LEVELS[1]
         new_level_msg += "\nNew Color Added!"
@@ -611,7 +430,8 @@ def next_level():
         new_level_msg += "\nNew Color Added!"
         ship.set_colors(level_colors)
 
-    clock.schedule(clear_new_level_msg, 15.0)
+    bubble_grid = Bubble_Grid(level_colors, bubble_grid.velocity * 1.1)
+    clock.schedule(clear_new_level_msg, 10.0)
 
 def clear_new_level_msg():
     global new_level_msg
@@ -619,24 +439,23 @@ def clear_new_level_msg():
     
 # Procedure Restarts the game when the 'r' key is pressed
 def initalize_game():
-    global kill_bubbles, droppers, ship, bullets, score, \
-    game_state, level_colors, bubble_velocity, level, next_level_points, \
-    speed_rows
+    global bubble_grid, droppers, ship, bullets, score, speed_rows, \
+           game_state, level, next_level_points, level_colors\
     
-    kill_bubbles = []
+    level_colors = COLOR_LEVELS[0]    
     droppers = Bubble_List()
     bullets = Bubble_List()
-    level_colors = COLOR_LEVELS[0] 
-    ship = Ship((WIDTH // 2 + BUBBLE_DIAMETER // 2, HEIGHT - 2*BUBBLE_DIAMETER),
-             COLOR_LEVELS[0],
-             BUBBLE_DIAMETER,
-             SHIP_ACCEL*BUBBLE_DIAMETER)
+    bubble_grid = Bubble_Grid(level_colors)
+    ship = Ship((WIDTH // 2 + Bubble.BUBBLE_DIAMETER // 2, 
+                 HEIGHT - 2*Bubble.BUBBLE_DIAMETER),
+                 level_colors,
+                 Bubble.BUBBLE_DIAMETER,
+                 SHIP_ACCEL*Bubble.BUBBLE_DIAMETER)
     score = 0
-    bubble_velocity = INITIAL_BUBBLE_VELOCITY 
     game_state = 1
     level = 1 
     next_level_points = 500    
     new_level_msg = None 
-    speed_rows = MATCH_LENGTH
+    speed_rows = Bubble_Grid.MATCH_LENGTH
 
 pgzrun.go()
