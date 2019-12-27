@@ -2,9 +2,12 @@
 Ring Leader
 """
 
+from dist import *
+
 class Ship(object):
     PURP = (62, 7, 120)   # Ship perimeter color
     FLAME = (237, 150, 9) # Ship Thruster Color
+    SHIP_ACCEL = .0003 #W,A,S,D depressed, speedup this much, decel on release
     
     def __init__(self, pos, color_list, bubble_diameter, accel):
         self.x, self.y = pos
@@ -135,3 +138,15 @@ class Ship(object):
         
     def reset_hull_size(self):
         self.final_radius = self.initial_radius
+        
+    # Function returns boolean indicating if the player's ship collides with
+    #  a bubble
+    def hit_ship(self, x, y, radius):
+        kill_zone = self.current_radius + radius
+        sx, sy = self.x, self.y
+        if is_close(sx, sy, x, y, kill_zone):
+            d = distance(sx, sy, x, y)
+            if d < kill_zone:                    
+                return True
+        
+        return False
