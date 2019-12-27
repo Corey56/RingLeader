@@ -6,9 +6,9 @@ import pgzrun
 from math import atan2
 from pygame.time import Clock
 
-from ship import Ship
+from ship import *
 from bubble import *
-from alerts import *
+from score import *
 
 # Configuration Constants-------------------------------------------------------
 BOARD_HEIGHT = 20 #Height of screen in Bubbles
@@ -65,8 +65,8 @@ COLOR_LEVELS = [[(173, 207, 25),(25, 207, 195),(186, 25, 207)], # 3 color
 # Procedure starts / restarts the game when the 'r' key is pressed
 def initalize_game():
     global bubble_grid, droppers, ship, bullets, score, speed_rows,\
-           score_alerts, delta, \
-           game_state, level, next_level_points, level_colors, cross_hair, c\
+           score_alerts, delta, new_level_msg,\
+           game_state, level, level_colors, cross_hair, c\
     
     bubble_grid = Bubble_Grid(COLOR_LEVELS[0])
     # list of all bubbles broken free from grid and falling 
@@ -81,34 +81,14 @@ def initalize_game():
                  Ship.SHIP_ACCEL*Bubble.BUBBLE_DIAMETER)
     # Displayed briefly on screen when points are earned/lost
     score_alerts = Alerts_List()
-    cross_hair = (0,0) #starts here and follows mouse
-    score = 0
-    game_state = 1 #1: Normal Play, 0: Game Over, 3: Paused, 5: Instruction Screen
+    cross_hair = Cross(Bubble.BUBBLE_DIAMETER) #starts here and follows mouse
+    score = Score(500)
+    game_state = 1 #1: Normal Play, 0: Game Over, 3: Paused, 5: Instruction 
     level = 1 # Levels progresses with player score
-    next_level_points = 500 # To get to level 2
     new_level_msg = None # Displayed briefly at level changes
     c = Clock()
     delta = [0]
     speed_rows = Bubble_Grid.MATCH_LENGTH
-
-# Global Data Structures--------------------------------------------------------
-bubble_grid = None
-droppers = None
-bullets = None
-level_colors = None
-ship = None
-score_alerts = None
-cross_hair = None
-score = None
-combo_bullets = None 
-combo_bubbles = None 
-game_state = None 
-level = None 
-next_level_points = None 
-new_level_msg = None 
-c = None
-delta = None
-speed_rows = None
 
 initalize_game()
 
@@ -119,11 +99,9 @@ def draw():
     ship.draw(screen)
     bullets.draw(screen)
     droppers.draw(screen)
-    draw_cross_hair()
+    cross_hair.draw(screen, ship.get_color())
     score_alerts.draw(screen, WIDTH)
-    # Draws the score and next level threshold in bottom left 
-    screen.draw.text(str(int(score))+'/'+str(next_level_points)
-                     , bottomleft=(10, HEIGHT-10))
+    score.draw(screen, HEIGHT)
     if new_level_msg: # Briefly introduce changes for a level
         screen.draw.text(new_level_msg , centery=(HEIGHT//4), centerx=WIDTH//2)
     if not game_state:
@@ -134,16 +112,6 @@ def draw():
         screen.fill(BLACK) # Declutter for redaing instructions
         screen.draw.text(INSTRUCTIONS, topleft=(350,150))
 
-# Procedure draws cross hairs to match player selected bullet color
-def draw_cross_hair():
-    x, y = cross_hair
-    c = ship.get_color()
-    b = Bubble.BUBBLE_DIAMETER
-    screen.draw.line((x-b//2, y), (x-b//4, y), c)
-    screen.draw.line((x+b//2, y), (x+b//4, y), c)
-    screen.draw.line((x, y-b//2), (x, y-b//4), c)
-    screen.draw.line((x, y+b//2), (x, y+b//4), c)
-
 # PGZero's global update game loop
 def update():
     delta[0] = c.tick()
@@ -153,7 +121,7 @@ def update():
         update_kill_bubbles()
         ship.update(delta[0], keyboard, keys, WIDTH, HEIGHT)
         score_alerts.update(delta, HEIGHT)
-        if score >= next_level_points: # Triger level change
+        if score.is_new_level(): # Triger level change
             next_level()
 
 # Procedure updates player fired bullets
@@ -166,22 +134,21 @@ def update_bullets():
     cnt = 0
     while cnt < len(bullets):
         b = bullets[cnt]
-        b.move(delta[0])
+        
+        b.move(delta[0]) # Update bullet location
         
         # Check for bullet off screen
         if b.is_off_screen(HEIGHT, WIDTH):
-            score_alerts += Alert(b.x, b.y, Bullet.LOST_BULLET_PENALTY, 
+            score_alerts += Alert(b.x, b.y, -Bullet.LOST_BULLET_PENALTY, 
                                   Alert.SCORE_DURATION, Alert.SCORE_VELOCITY)
-            score += Bullet.LOST_BULLET_PENALTY
-            if score < 0: # Don't drop score below 0
-                score = 0
+            score -= Bullet.LOST_BULLET_PENALTY
             del bullets[cnt]
         
         # Check for collision with grid
         elif bubble_grid.bullet_collide(b.x, b.y, b.color):
             del bullets[cnt]
         
-        else:
+        else: # Next Bullet
             cnt += 1
 
 # Procedure updates kill bubble grid.
@@ -223,14 +190,7 @@ def update_kill_bubbles():
     
     droppers += bubble_grid.drop_loose_bubbles()
 
-# Procedure updates falling bubbles which may fall off the screen, hit the 
-#  player's ship, or land back on the kill bubble grid. Points are awarded for
-#  falling bubbles leaving the screen.  All falling bubbles accelerate downward
-#  away from the grid location from which they fell.
-# Calls hit_ship() and falling_bubble_lands() to determine colisions.
-# Modifies globals score and falling_bubbles
 def update_droppers():
-    #[[x_pos, y_pos, color, vely, column], ...more droppers]
     global score, score_alerts
     cnt = 0
     while cnt < len(droppers):
@@ -280,9 +240,6 @@ def delete_bubble_matches():
         rec_erase(i,j)
         if combo_bullets and combo_bubbles:
             bonus = 2**combo_bubbles
-            score_diff = next_level_points - score
-            if bonus > score_diff:
-                bonus = score_diff
             score += bonus
             x, y = bubble_grid[i][j].x, bubble_grid[i][j].y
             score_alerts += Alert(x, y, bonus, 
@@ -312,8 +269,7 @@ def rec_erase(i,j):
             rec_erase(i, j)
 
 def on_mouse_move (pos):
-    global cross_hair
-    cross_hair = pos
+    cross_hair.pos = pos
 
 def on_mouse_down (pos, button):
     global bubble_velocity, speed_rows, bullets
@@ -343,15 +299,15 @@ def get_angle(pos):
     return atan2(ship.y - pos[1], - (ship.x - pos[0]))
 
 def next_level():
-    global level, bubble_velocity, bubble_grid, bullets, next_level_points, \
-        droppers, new_level_msg, speed_rows, level_colors
+    global level, bubble_velocity, bubble_grid, bullets, \
+        droppers, new_level_msg, speed_rows, level_colors, score
     
     droppers = Dropper_List()
     bullets = Bullet_List()
     ship.reset_hull_size()
     level += 1
     speed_rows = Bubble_Grid.MATCH_LENGTH
-    next_level_points += 250 * level
+    score.next_level_points += 250 * level
     
     new_level_msg = f"Level {level}\nBubble Creation Rate +10%"
     

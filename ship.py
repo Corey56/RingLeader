@@ -4,6 +4,20 @@ Ring Leader
 
 from dist import *
 
+class Cross(object):
+    def __init__(self, size):
+        self.pos = (0,0)
+        self.size = size
+    
+    # Procedure draws cross hairs to match player selected bullet color
+    def draw(self, screen, color):
+        x, y = self.pos
+        b = self.size
+        screen.draw.line((x-b//2, y), (x-b//4, y), color)
+        screen.draw.line((x+b//2, y), (x+b//4, y), color)
+        screen.draw.line((x, y-b//2), (x, y-b//4), color)
+        screen.draw.line((x, y+b//2), (x, y+b//4), color)
+
 class Ship(object):
     PURP = (62, 7, 120)   # Ship perimeter color
     FLAME = (237, 150, 9) # Ship Thruster Color

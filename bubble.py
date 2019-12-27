@@ -27,7 +27,7 @@ class Bubble(object):
 
 class Bullet(Bubble):
     BULLET_VELOCITY = .02 * Bubble.BUBBLE_DIAMETER # speed of a fired bullet
-    LOST_BULLET_PENALTY = -4 # Points lost for an errant bullet
+    LOST_BULLET_PENALTY = 4 # Points lost for an errant bullet
     
     def __init__(self, x, y, color, ang):
         self.angle = ang

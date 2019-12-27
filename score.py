@@ -2,6 +2,34 @@
 Ring Leader
 """
 
+class Score(object):
+    def __init__(self, nlp):
+        self.score = 0
+        self.next_level_points = nlp
+
+    def __iadd__(self, rhs):
+        self.score += rhs
+        if self.score > self.next_level_points:
+            self.score = self.next_level_points
+        return self
+
+    def __isub__(self, rhs):
+        self.score -= rhs
+        if self.score < 0:
+            self.score = 0
+        return self
+
+    def draw(self, screen, HEIGHT):
+        # Draws the score and next level threshold in bottom left 
+        screen.draw.text(f'{self.score}/{self.next_level_points}',
+                         bottomleft=(10, HEIGHT-10))
+
+    def is_new_level(self):
+        if self.score >= self.next_level_points:
+            return True
+        
+        return False
+
 class Alert(object):
     SCORE_VELOCITY = -.02 # Constant upward movement of score alerts
     SCORE_DURATION = 40 # Update cycles to display score alerts
