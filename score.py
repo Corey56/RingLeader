@@ -6,47 +6,62 @@ class Score(object):
     def __init__(self, nlp):
         self.score = 0
         self.next_level_points = nlp
+        self.alerts = Alerts_List()
 
     def __iadd__(self, rhs):
-        self.score += rhs
-        if self.score > self.next_level_points:
-            self.score = self.next_level_points
+        if type(rhs) is not list:
+            rhs = [rhs]
+        
+        for alert in rhs:
+            if type(alert) is tuple:
+                alert = Alert(alert[0][0], alert[0][1], alert[1])
+            
+            p_max = self.next_level_points - self.score
+            
+            if alert.pts > p_max:
+                alert.pts = p_max
+            elif -alert.pts > self.score:
+                alert.pts = -self.score
+
+            self.score += alert.pts
+            
+            if alert.pts:
+                self.alerts += alert
+        
         return self
 
-    def __isub__(self, rhs):
-        self.score -= rhs
-        if self.score < 0:
-            self.score = 0
-        return self
-
-    def draw(self, screen, HEIGHT):
+    def draw(self, screen, HEIGHT, WIDTH):
         # Draws the score and next level threshold in bottom left 
         screen.draw.text(f'{self.score}/{self.next_level_points}',
                          bottomleft=(10, HEIGHT-10))
+        self.alerts.draw(screen, WIDTH)
 
     def is_new_level(self):
         if self.score >= self.next_level_points:
             return True
         
         return False
+        
+    def update(self, delta, HEIGHT):
+        self.alerts.update(delta, HEIGHT)
 
 class Alert(object):
     SCORE_VELOCITY = -.02 # Constant upward movement of score alerts
     SCORE_DURATION = 40 # Update cycles to display score alerts
     
-    def __init__(self, x, y, msg, life, vely):
+    def __init__(self, x, y, pts):
         self.x = x
         self.y = y
-        self.msg = msg
-        self.life = life
-        self.vely = vely
+        self.pts = pts
+        self.life = Alert.SCORE_DURATION
+        self.vely = Alert.SCORE_VELOCITY
     
     def __str__(self):
         atts = ['\t' + a + ': ' + str(v) for a,v in self.__dict__.items()]
         return type(self).__name__ + ' object:\n' + '\n'.join(atts)
 
     def draw(self, screen, WIDTH):
-        x, y, m = self.x, self.y, self.msg
+        x, y, m = self.x, self.y, self.pts
         if x > WIDTH: #Off screen to right, adjust
             screen.draw.text(f'{m:+d}', midright=(WIDTH, y))
         elif x < 0: #Off screen to left, adjust
@@ -61,9 +76,9 @@ class Alerts_List(object):
     def __str__(self):
         if self.contents:
             s = 'Alerts_List:\n'
-            s += '     x pos     y pos   msg   life    vely\n'
+            s += '     x pos     y pos   pts   life    vely\n'
             for a in self.contents:
-                s += f'{a.x:10.2f}{a.y:10.2f}{a.msg:6}{a.life:5}{a.vely:10.2f}\n'
+                s += f'{a.x:10.2f}{a.y:10.2f}{a.pts:6}{a.life:5}{a.vely:10.2f}\n'
         else:
             s = 'Empty Alerts_List:\n'
         return s

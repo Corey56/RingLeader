@@ -133,6 +133,7 @@ class Bubble_Grid(object):
         
         self.colors = colors
         self.rows = []
+        self.speed_rows = Bubble_Grid.MATCH_LENGTH
 
     def __str__(self):
         if self.rows:
@@ -179,6 +180,10 @@ class Bubble_Grid(object):
         self.rows.insert(0, nbr)
         
     def addTopRow(self):
+        if self.rows and self.rows[-1][0].y < Bubble.BUBBLE_DIAMETER//2 \
+                                              + Bubble_Grid.BUBBLE_PADDING:
+            return
+    
         if not self.rows:
             y = -Bubble.BUBBLE_DIAMETER // 2 #Barely off the screen
         else:
@@ -202,6 +207,9 @@ class Bubble_Grid(object):
             nbr += Grid_Bubble(x, y, c, False)
             x += Bubble_Grid.BUBBLE_PADDING + Bubble.BUBBLE_DIAMETER
         self.rows.append(nbr)
+        
+        if self.speed_rows:
+            self.speed_rows -= 1
         
     # Function takes the coordinates of bullet and returns true if the bullet
     #  colides with the kill bubble grid.
@@ -359,3 +367,57 @@ class Bubble_Grid(object):
                     matches.append((i,j))
         
         return matches
+        
+    def prune_bottom_row(self, HEIGHT):
+        if self.rows and self.rows[0][0].y > HEIGHT + Bubble.BUBBLE_DIAMETER//2:
+            del self.rows[0] # fell off screen
+            
+    def collide(self, x, y, radius):
+        strike_zone = Bubble.BUBBLE_DIAMETER//2 + radius
+        for row in self.rows:
+            for b in row:
+                if b.color and is_close(b.x, b.y, x, y, strike_zone):
+                    d = distance(b.x, b.y, x, y)
+                    if d <= strike_zone:
+                        return True
+        return False
+                    
+    def move(self, time_delta):
+        delta_y = self.velocity * time_delta
+        if self.speed_rows:
+            delta_y *= 16
+        for row in self.rows:
+            for b in row:            
+                b.y += delta_y
+                
+    def erase_matches(self):
+        combos = []
+        for match in self.get_matches():
+            bulletFound = None
+            combo_bubbles = 0
+            path = [match]
+            while path:
+                r, c = path.pop()
+                b = self.rows[r][c]
+                color = b.color
+                if not color:
+                    continue
+                if b.bulletFlag:
+                    bulletFound = (b.x,b.y)
+                else:
+                    combo_bubbles += 1
+                b.color = None
+                n = ((r+1,c), (r-1,c), (r, c+1), (r, c-1))
+                for nei in n:
+                    i, j = nei
+                    if (i in range(len(self.rows)) 
+                            and j in range(Bubble_Grid.BOARD_WIDTH)
+                            and self.rows[i][j].color == color):
+                        path.append((i, j))
+                        
+            if bulletFound:
+                combos.append((bulletFound, 2**combo_bubbles))
+                
+        return combos
+                
+        
