@@ -43,11 +43,16 @@ class Bullet(Bubble):
 class Dropper(Bubble):
     BUBBLE_GRAVITY = .00028 # bubble drops off the grid accellerate downward
     FALLING_BUBBLE_POINTS = 4 # Points received for a falling bubble
+    HIT_GROW = Bubble.BUBBLE_DIAMETER//4 #growth when struck by a falling bubble
 
     def __init__(self, x, y, color, vely, column):
         self.vely = vely
         self.column = column
         super().__init__(x, y, color)
+        
+    def move(self, time_delta):
+        self.y += self.vely * time_delta
+        self.vely += Dropper.BUBBLE_GRAVITY * time_delta
         
 class Grid_Bubble(Bubble):
     def __init__(self, x, y, color, bulletFlag):
@@ -106,6 +111,32 @@ class Bullet_List(Bubble_List):
             s = 'Empty Bullet_List:'
         return s
         
+    def move(self, delta_y):
+        for b in self.contents:
+            b.move(delta_y)
+            
+    def check_bounds(self, HEIGHT, WIDTH):
+        oob = []
+        cnt = 0
+        while cnt < len(self.contents):
+            b = self.contents[cnt]
+            if b.is_off_screen(HEIGHT, WIDTH):
+                oob.append(((b.x, b.y), -Bullet.LOST_BULLET_PENALTY))
+                
+                del self.contents[cnt]
+            else:
+                cnt += 1
+        return oob
+        
+    def delete_strikers(self, grid):
+        cnt = 0
+        while cnt < len(self.contents):
+            b = self.contents[cnt]
+            if grid.bullet_collide(b.x, b.y, b.color):
+                del self.contents[cnt]
+            else:
+                cnt += 1
+        
 class Dropper_List(Bubble_List):
     def __str__(self):
         #x, y, color, vely, column
@@ -117,6 +148,43 @@ class Dropper_List(Bubble_List):
         else:
             s = 'Empty Dropper_List:'
         return s
+        
+    def move(self, delta_y):
+        for d in self.contents:
+            d.move(delta_y)
+            
+    def check_bounds(self, HEIGHT):
+        oob = []
+        cnt = 0
+        while cnt < len(self.contents):
+            fb = self.contents[cnt]
+            if fb.y > HEIGHT: # fell off screen. Award points and remove
+                oob.append(((fb.x, fb.y), Dropper.FALLING_BUBBLE_POINTS))
+                del self.contents[cnt]
+            else:
+                cnt += 1
+        return oob
+        
+    def num_strikers(self, ship):
+        strikers = 0
+        cnt = 0
+        while cnt < len(self.contents):
+            fb = self.contents[cnt]
+
+            if ship.hit_ship(fb.x,fb.y, Bubble.BUBBLE_DIAMETER//2):
+                del self.contents[cnt]
+                strikers += 1
+            else:
+                cnt += 1
+        return strikers
+        
+    def delete_landers(self, grid):
+        cnt = 0
+        while cnt < len(self.contents):
+            if grid.falling_bubble_lands(self.contents[cnt]):
+                del self.contents[cnt]
+            else:                
+                cnt += 1
 
 class Bubble_Grid(object):
     BUBBLE_PADDING = 4
@@ -419,5 +487,13 @@ class Bubble_Grid(object):
                 combos.append((bulletFound, 2**combo_bubbles))
                 
         return combos
-                
         
+    def falling_bubble_lands(self, fb):
+        y, c, j = fb.y, fb.color, fb.column
+        d = Bubble.BUBBLE_DIAMETER + Bubble_Grid.BUBBLE_PADDING
+        for i, row in enumerate(self.rows):
+            b = row[j] # only check in the faller's column
+            if b.color and abs(b.y - y) <= d:
+                self.rows[i+1][j].color = c
+                return True
+        return False

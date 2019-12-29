@@ -2,6 +2,7 @@
 Ring Leader
 """
 
+from math import atan2
 from dist import *
 
 class Cross(object):
@@ -36,12 +37,15 @@ class Ship(object):
         self.wthrust = False
         self.nthrust = False
         self.sthrust = False
+        self.cross = Cross(bubble_diameter)
     
     def __str__(self):
         atts = ['\t' + a + ': ' + str(v) for a,v in self.__dict__.items()]
         return type(self).__name__ + ' object:\n' + '\n'.join(atts)
     
     def draw(self, screen):
+        self.cross.draw(screen, self.get_color())
+        
         screen.draw.circle((self.x, self.y), self.current_radius,
             Ship.PURP) #outer hull
             
@@ -164,3 +168,6 @@ class Ship(object):
                 return True
         
         return False
+        
+    def get_angle(self, pos):
+        return atan2(self.y - pos[1], - (self.x - pos[0]))

@@ -3,7 +3,6 @@ Ring Leader
 """
 
 import pgzrun
-from math import atan2
 from pygame.time import Clock
 
 from ship import *
@@ -19,7 +18,7 @@ WIDTH = (Bubble.BUBBLE_DIAMETER * Bubble_Grid.BOARD_WIDTH
 # Total Height of the screen based on bubbles
 HEIGHT = (Bubble.BUBBLE_DIAMETER*BOARD_HEIGHT 
           + Bubble_Grid.BUBBLE_PADDING * BOARD_HEIGHT)
-HIT_GROW = Bubble.BUBBLE_DIAMETER//4 #growth when struck by a falling bubble
+
 BLACK = (0,0,0)       # Background Color
 
 #Multiline String Games message constants
@@ -65,8 +64,8 @@ COLOR_LEVELS = [[(173, 207, 25),(25, 207, 195),(186, 25, 207)], # 3 color
 # Procedure starts / restarts the game when the 'r' key is pressed
 def initalize_game():
     global bubble_grid, droppers, ship, bullets, score, \
-           delta, new_level_msg,\
-           game_state, level, level_colors, cross_hair, c\
+           new_level_msg,\
+           game_state, level, level_colors, c\
     
     bubble_grid = Bubble_Grid(COLOR_LEVELS[0])
     # list of all bubbles broken free from grid and falling 
@@ -80,13 +79,11 @@ def initalize_game():
                  Bubble.BUBBLE_DIAMETER,
                  Ship.SHIP_ACCEL*Bubble.BUBBLE_DIAMETER)
     # Displayed briefly on screen when points are earned/lost
-    cross_hair = Cross(Bubble.BUBBLE_DIAMETER) #starts here and follows mouse
     score = Score(500)
     game_state = 1 #1: Normal Play, 0: Game Over, 3: Paused, 5: Instruction 
     level = 1 # Levels progresses with player score
     new_level_msg = None # Displayed briefly at level changes
     c = Clock()
-    delta = [0]
 
 initalize_game()
 
@@ -97,7 +94,6 @@ def draw():
     ship.draw(screen)
     bullets.draw(screen)
     droppers.draw(screen)
-    cross_hair.draw(screen, ship.get_color())
     score.draw(screen, HEIGHT, WIDTH)
     if new_level_msg: # Briefly introduce changes for a level
         screen.draw.text(new_level_msg , centery=(HEIGHT//4), centerx=WIDTH//2)
@@ -111,104 +107,36 @@ def draw():
 
 # PGZero's global update game loop
 def update():
-    global game_state
-    delta[0] = c.tick()
-    #print(delta[0])
+    global game_state, droppers, score
+    delta = c.tick()
+    
     if game_state == 1: # Normal Game Play
-        update_bullets()
-        update_droppers()
-        update_kill_bubbles()
-        ship.update(delta[0], keyboard, keys, WIDTH, HEIGHT)
+        bullets.move(delta)
+        score += bullets.check_bounds(HEIGHT, WIDTH)
+        bullets.delete_strikers(bubble_grid)
+        droppers.move(delta)
+        score += droppers.check_bounds(HEIGHT)
+        droppers.delete_landers(bubble_grid)
+        ship.final_radius += Dropper.HIT_GROW * droppers.num_strikers(ship)
+        bubble_grid.prune_bottom_row(HEIGHT)
+        bubble_grid.addTopRow()
+        bubble_grid.move(delta)
+        score += bubble_grid.erase_matches()
+        droppers += bubble_grid.drop_loose_bubbles()
+        ship.update(delta, keyboard, keys, WIDTH, HEIGHT)
         if bubble_grid.collide(ship.x, ship.y, ship.current_radius):
             game_state = 0
         score.update(delta, HEIGHT)
         if score.is_new_level(): # Triger level change
             next_level()
 
-# Procedure updates player fired bullets which may
-#  - Fly off the screen for a point penalty
-#  - Strike the bubble grid and assimilate into it
-#  - Move noramaly in their direction of travel
-def update_bullets():
-    global score
-    
-    cnt = 0
-    while cnt < len(bullets):
-        b = bullets[cnt]
-        
-        b.move(delta[0]) # Update bullet location
-        
-        # Check for bullet off screen
-        if b.is_off_screen(HEIGHT, WIDTH):
-            score += Alert(b.x, b.y, -Bullet.LOST_BULLET_PENALTY)
-            
-            del bullets[cnt]
-        
-        # Check for collision with grid
-        elif bubble_grid.bullet_collide(b.x, b.y, b.color):
-            del bullets[cnt]
-        
-        else: # Next Bullet
-            cnt += 1
-
-# Procedure updates kill bubble grid.
-# 1. Remove the bottom row of bubbles if off screen
-# 2. Call add_bubble_row() to add a new row of kill bubbles at top if needed
-# 3. Call hit_ship() to end the game if any kill bubbles strike player ship
-# 4. Move all bubbles downward by global bubble_velocity.
-# 5. Call delete_bubble_matches() to match any bubbles of same color chains
-# 6. Call drop_loose_bubbles() to drop bubbles not connected to top row of grid
-# Modifies global kill_bubbles
-def update_kill_bubbles():
-    global droppers, game_state, score
-    
-    bubble_grid.prune_bottom_row(HEIGHT)
-    bubble_grid.addTopRow()
-    bubble_grid.move(delta[0])
-    score += bubble_grid.erase_matches()
-    droppers += bubble_grid.drop_loose_bubbles()
-
-def update_droppers():
-    global score
-    cnt = 0
-    while cnt < len(droppers):
-        fb = droppers[cnt]
-        if fb.y > HEIGHT: # fell off screen. Award points and remove
-            score += Alert(fb.x, fb.y, Dropper.FALLING_BUBBLE_POINTS)
-            del droppers[cnt]
-        
-        # struck the ship or landed back on the kill bubble grid
-        elif ship.hit_ship(fb.x,fb.y, Bubble.BUBBLE_DIAMETER//2):
-            del droppers[cnt]
-            ship.final_radius += HIT_GROW
-        
-        elif falling_bubble_lands(fb):
-            del droppers[cnt]
-        
-        else: # accelerate normally downward
-            droppers[cnt].y += fb.vely * delta[0]
-            droppers[cnt].vely += Dropper.BUBBLE_GRAVITY * delta[0]
-            cnt += 1
-
-# Function returns True if a falling bubble lands on the kill bubble grid and 
-#  false otherwise.
-def falling_bubble_lands(fb):
-    y, c, j = fb.y, fb.color, fb.column
-    d = Bubble.BUBBLE_DIAMETER + Bubble_Grid.BUBBLE_PADDING
-    for i, row in enumerate(bubble_grid):
-        b = row[j] # only check in the faller's column
-        if b.color and abs(b.y - y) <= d:
-            bubble_grid[i+1][j].color = c
-            return True
-    return False
-
 def on_mouse_move (pos):
-    cross_hair.pos = pos
+    ship.cross.pos = pos
 
 def on_mouse_down (pos, button):
-    global bubble_velocity, bullets
+    global bullets
     if mouse.LEFT == button:
-        bullets += Bullet(ship.x, ship.y, ship.get_color(), get_angle(pos))
+        bullets += Bullet(ship.x, ship.y, ship.get_color(), ship.get_angle(pos))
     if mouse.RIGHT == button:
         bubble_grid.speed_rows += 1
 
@@ -229,11 +157,8 @@ def on_key_down(key):
         elif game_state == 5:
             game_state = 3
 
-def get_angle(pos):
-    return atan2(ship.y - pos[1], - (ship.x - pos[0]))
-
 def next_level():
-    global level, bubble_velocity, bubble_grid, bullets, \
+    global level, bubble_grid, bullets, \
         droppers, new_level_msg, level_colors, score
     
     droppers = Dropper_List()

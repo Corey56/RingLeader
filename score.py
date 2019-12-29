@@ -118,7 +118,7 @@ class Alerts_List(object):
             elif y < 5: # Move high alerts down 
                 self.contents[cnt].y = 5
                 self.contents[cnt].vely *= -1 # And make them float down instead of up
-            self.contents[cnt].y += vely*delta[0] # Float up slowly
+            self.contents[cnt].y += vely*delta # Float up slowly
             if life < 0: # Time expired
                 del self.contents[cnt]
             else:
