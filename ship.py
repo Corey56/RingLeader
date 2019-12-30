@@ -1,101 +1,118 @@
 """
-Ring Leader
+Module contains the Ship and Cross classes
 """
 
 from math import atan2
 from dist import *
 
-class Cross(object):
-    def __init__(self, size):
-        self.pos = (0,0)
-        self.size = size
-    
-    # Procedure draws cross hairs to match player selected bullet color
-    def draw(self, screen, color):
-        x, y = self.pos
-        b = self.size
-        screen.draw.line((x-b//2, y), (x-b//4, y), color)
-        screen.draw.line((x+b//2, y), (x+b//4, y), color)
-        screen.draw.line((x, y-b//2), (x, y-b//4), color)
-        screen.draw.line((x, y+b//2), (x, y+b//4), color)
-
 class Ship(object):
+    """
+    Represents the player piloted ship.
+    """
+
     PURP = (62, 7, 120)   # Ship perimeter color
     FLAME = (237, 150, 9) # Ship Thruster Color
-    SHIP_ACCEL = .00048 #W,A,S,D depressed, speedup this much, decel on release
-    
-    def __init__(self, pos, color_list, bubble_diameter):
+    ACCEL = .00048        # Acceleration on key hold
+    HULL_RADIUS = 32      # in pix
+    HIT_GROW = 8          # ship growth when struck by a falling bubble (pix)
+
+    def __init__(self, pos, color_list):
+        """
+        Initialize location, size, color, thrusters and cross-hair.
+        """
+
         self.x, self.y = pos
         self.bullet_colors = color_list
         self.bullet_index = 0
-        self.final_radius = bubble_diameter
-        self.initial_radius = bubble_diameter
+        self.final_radius = Ship.HULL_RADIUS
         self.current_radius = 0
         self.velx, self.vely  = 0, 0
         self.ethrust = False
         self.wthrust = False
         self.nthrust = False
         self.sthrust = False
-        self.cross = Cross(bubble_diameter)
-    
+        self.cross = Cross()
+
     def __str__(self):
+        """
+        Returns formatted string for printing
+        """
+
         atts = ['\t' + a + ': ' + str(v) for a,v in self.__dict__.items()]
         return type(self).__name__ + ' object:\n' + '\n'.join(atts)
-    
+
     def draw(self, screen):
+        """
+        Given a PGZero screen object, draw the ship, thrusters and cross-hair.
+        """
+
         self.cross.draw(screen, self.get_color())
-        
+
         screen.draw.circle((self.x, self.y), self.current_radius,
             Ship.PURP) #outer hull
-            
-        screen.draw.filled_circle((self.x, self.y), self.initial_radius//4,
-            self.bullet_colors[self.bullet_index]) #bullet indicator
-            
+
+        screen.draw.filled_circle((self.x, self.y), Ship.HULL_RADIUS//4,
+            self.bullet_colors[self.bullet_index]) #central bullet indicator
+
         if self.nthrust: # North, Boost Down
             screen.draw.filled_circle((self.x, self.y-self.current_radius),
-                                      self.initial_radius//4 , Ship.FLAME)
+                                      Ship.HULL_RADIUS//4 , Ship.FLAME)
         if self.sthrust: # South, Boost Up
             screen.draw.filled_circle((self.x, self.y+self.current_radius),
-                                      self.initial_radius//4 , Ship.FLAME)
-        
+                                      Ship.HULL_RADIUS//4 , Ship.FLAME)
+
         if self.ethrust: # East, Boost left
             screen.draw.filled_circle((self.x+self.current_radius, self.y),
-                                      self.initial_radius//4 , Ship.FLAME)
-                                      
+                                      Ship.HULL_RADIUS//4 , Ship.FLAME)
+
         if self.wthrust: # West, Boost right
             screen.draw.filled_circle((self.x-self.current_radius, self.y),
-                                      self.initial_radius//4 , Ship.FLAME)
-                                      
+                                      Ship.HULL_RADIUS//4 , Ship.FLAME)
+
     def update(self, time_delta, keyboard, keys, WIDTH, HEIGHT):
+        """
+        Wrapper function updates the ship's hull size and moves the ship.
+        """
+
         self.update_hull()
         self.move(time_delta, keyboard, keys, WIDTH, HEIGHT)
-            
+
     def update_hull(self):
+        """
+        Animates the shrinking and growing of the ship's hull 1 pixel per update
+        """
+
         if self.current_radius < self.final_radius:
             self.current_radius += 1
         elif self.current_radius > self.final_radius:
             self.current_radius -= 1
-            
+
     def move(self, time_delta, keyboard, keys, WIDTH, HEIGHT):
+        """
+        Given time elapsed since last update, keyboard and key pgzero objects,
+         width and height of the game board: Update the ship's position,
+         velocity and thrust indicators.
+        """
+
         # Update horizontal velocity and thrust indicators
         if keyboard[keys.A] and keyboard[keys.D]:
             self.ethrust = True
             self.wthrust = True
         elif keyboard[keys.A]:
-            self.velx -= Ship.SHIP_ACCEL * time_delta
+            self.velx -= Ship.ACCEL * time_delta
             self.ethrust = True
             self.wthrust = False
         elif keyboard[keys.D]:
-            self.velx += Ship.SHIP_ACCEL * time_delta
+            self.velx += Ship.ACCEL * time_delta
             self.ethrust = False
             self.wthrust = True
-        else: # Decelerate in the horizontal plane if A or D not depressed.
+        else: # Decelerate in the horizontal plane if 'A' or 'D' not depressed.
             self.ethrust = False
             self.wthrust = False
             sign = 1
             if self.velx < 0:
                 sign = -1
-            self.velx = abs(self.velx) - Ship.SHIP_ACCEL * time_delta
+            self.velx = abs(self.velx) - Ship.ACCEL * time_delta
             if self.velx < 0:
                 self.velx = 0
             else:
@@ -106,20 +123,20 @@ class Ship(object):
             self.nthrust = True
             self.sthrust = True
         elif keyboard[keys.W]:
-            self.vely -= Ship.SHIP_ACCEL * time_delta
+            self.vely -= Ship.ACCEL * time_delta
             self.sthrust = True
             self.nthrust = False
         elif keyboard[keys.S]:
-            self.vely += Ship.SHIP_ACCEL * time_delta
+            self.vely += Ship.ACCEL * time_delta
             self.nthrust = True
             self.sthrust = False
-        else: # Decelerate in the vertical plane if W or S not depressed.
+        else: # Decelerate in the vertical plane if 'W' or 'S' not depressed.
             self.nthrust = False
             self.sthrust = False
             sign = 1
             if self.vely < 0:
                 sign = -1
-            self.vely = abs(self.vely) - Ship.SHIP_ACCEL * time_delta
+            self.vely = abs(self.vely) - Ship.ACCEL * time_delta
             if self.vely < 0:
                 self.vely = 0
             else:
@@ -128,13 +145,13 @@ class Ship(object):
         # Update position
         self.x += self.velx * time_delta
         self.y += self.vely * time_delta
-        
+
         # Wrap ship movement in horizontal plane
         if self.x > WIDTH:
             self.x = 0
         elif self.x < 0:
             self.x = WIDTH
-        
+
         # Constrain ship movement in vertical plane
         if self.y > HEIGHT:
             self.y = HEIGHT
@@ -142,31 +159,79 @@ class Ship(object):
         elif self.y < 0:
             self.y = 0
             self.vely = 0
-            
+
     def get_color(self):
+        """
+        Returns the color of bullet the ship is firing
+        """
+
         return self.bullet_colors[self.bullet_index]
-    
+
     def set_colors(self, color_list):
+        """
+        Updates the color of bullets the ship may fire
+        """
+
         self.bullet_colors = color_list
         self.bullet_index = 0
-    
+
     def cycle_color(self):
+        """
+        Move to the next possible bullet color
+        """
+
         self.bullet_index = (self.bullet_index+1)%len(self.bullet_colors)
-        
+
     def reset_hull_size(self):
-        self.final_radius = self.initial_radius
-        
-    # Function returns boolean indicating if the player's ship collides with
-    #  a bubble
+        """
+        Reset the ship's hull back to it's original size
+        """
+
+        self.final_radius = Ship.HULL_RADIUS
+
     def hit_ship(self, x, y, radius):
+        """
+        returns boolean indicating if the player's ship collides with a bubble
+        """
+
         kill_zone = self.current_radius + radius
         sx, sy = self.x, self.y
         if is_close(sx, sy, x, y, kill_zone):
             d = distance(sx, sy, x, y)
-            if d < kill_zone:                    
+            if d < kill_zone:
+                self.final_radius += Ship.HIT_GROW
                 return True
-        
+
         return False
-        
+
     def get_angle(self, pos):
+        """
+        Returns the angle between a given position and the player's ship in
+         radians.
+        """
+
         return atan2(self.y - pos[1], - (self.x - pos[0]))
+
+class Cross(object):
+    """
+    Represents colored cross-hairs for aiming.
+    """
+    def __init__(self):
+        """
+        Initialize position to top left of screen
+        """
+
+        self.pos = (0,0)
+
+    def draw(self, screen, color):
+        """
+        Given a PGZero screen object and a color, draws cross-hairs to match
+         ship's selected bullet color
+        """
+
+        x, y = self.pos
+        b = Ship.HULL_RADIUS
+        screen.draw.line((x-b//2, y), (x-b//4, y), color)
+        screen.draw.line((x+b//2, y), (x+b//4, y), color)
+        screen.draw.line((x, y-b//2), (x, y-b//4), color)
+        screen.draw.line((x, y+b//2), (x, y+b//4), color)

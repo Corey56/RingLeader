@@ -1,5 +1,14 @@
 """
-Ring Leader
+This file contains the Ring Leader game which has the following dependencies.
+- PGZero package
+- dist.py
+- score.py
+- bubble.py
+- ship.py
+
+- Install Dependencies: `pip install pgzero`
+- Play the game: `python ring_leader.py`
+- Press 'p' to pause and then 'i' to view instructions.
 """
 
 import pgzrun
@@ -12,11 +21,11 @@ from score import *
 # Configuration Constants-------------------------------------------------------
 BOARD_HEIGHT = 20 #Height of screen in Bubbles
 # Total Width of the screen based on bubbles
-WIDTH = (Bubble.BUBBLE_DIAMETER * Bubble_Grid.BOARD_WIDTH 
-         + Bubble_Grid.BUBBLE_PADDING * (Bubble_Grid.BOARD_WIDTH-1) 
+WIDTH = (Bubble.BUBBLE_DIAMETER * Bubble_Grid.BOARD_WIDTH
+         + Bubble_Grid.BUBBLE_PADDING * (Bubble_Grid.BOARD_WIDTH-1)
          + Bubble_Grid.MARGINS * 2)
 # Total Height of the screen based on bubbles
-HEIGHT = (Bubble.BUBBLE_DIAMETER*BOARD_HEIGHT 
+HEIGHT = (Bubble.BUBBLE_DIAMETER*BOARD_HEIGHT
           + Bubble_Grid.BUBBLE_PADDING * BOARD_HEIGHT)
 
 BLACK = (0,0,0)       # Background Color
@@ -36,19 +45,19 @@ INSTRUCTIONS = """Controls
 - r to restart game
 
 Gameplay
-- Fire bubbles to make rows and columns of 
+- Fire bubbles to make rows and columns of
   4 consecutive bubbles of the same color.
-- Maneuver your ship to avoid all Bubbles. 
+- Maneuver your ship to avoid all Bubbles.
 - Bubbles creeping downward will destroy your ship on contact.
 - Falling bubbles which strike your ship will cause it to grow.
 
 Scoring
-- Awarded points scale exponentially with the number 
-  of bubbles popped in a single combo. Bubbles created 
+- Awarded points scale exponentially with the number
+  of bubbles popped in a single combo. Bubbles created
   by player bullets do not score points.
-- You cannot score more points than required to reach 
+- You cannot score more points than required to reach
   the next level with a combo.
-- Points are awarded for any falling bubbles 
+- Points are awarded for any falling bubbles
   which do not strike the player's vessel.
 - Points are deducted for any bullets which fly out of bounds.
 
@@ -65,20 +74,19 @@ COLOR_LEVELS = [[(173, 207, 25),(25, 207, 195),(186, 25, 207)], # 3 color
 def initalize_game():
     global bubble_grid, droppers, ship, bullets, score, new_level_msg,\
            game_state, level, level_colors, c
-    
+
     bubble_grid = Bubble_Grid(COLOR_LEVELS[0])
-    # list of all bubbles broken free from grid and falling 
+    # list of all bubbles broken free from grid and falling
     droppers = Dropper_List()
     # List of bullets fired from the player's ship
     bullets = Bullet_List()
     level_colors = COLOR_LEVELS[0] #start with 3 colors and increase
-    ship = Ship((WIDTH // 2 + Bubble.BUBBLE_DIAMETER // 2, 
+    ship = Ship((WIDTH // 2 + Bubble.BUBBLE_DIAMETER // 2,
                  HEIGHT - 2*Bubble.BUBBLE_DIAMETER),
-                 COLOR_LEVELS[0],
-                 Bubble.BUBBLE_DIAMETER)
+                 COLOR_LEVELS[0])
     # Displayed briefly on screen when points are earned/lost
     score = Score(500)
-    game_state = 1 #1: Normal Play, 0: Game Over, 3: Paused, 5: Instruction 
+    game_state = 1 #1: Normal Play, 0: Game Over, 3: Paused, 5: Instruction
     level = 1 # Levels progresses with player score
     new_level_msg = None # Displayed briefly at level changes
     c = Clock()
@@ -107,15 +115,15 @@ def draw():
 def update():
     global game_state, droppers, score
     delta = c.tick()
-    
+
     if game_state == 1: # Normal Game Play
         bullets.move(delta)
         score += bullets.check_bounds(HEIGHT, WIDTH)
         bullets.delete_strikers(bubble_grid)
         droppers.move(delta)
         score += droppers.check_bounds(HEIGHT)
-        droppers.delete_landers(bubble_grid)
-        ship.final_radius += Dropper.HIT_GROW * droppers.num_strikers(ship)
+        droppers.land(bubble_grid)
+        droppers.strike(ship)
         bubble_grid.prune_bottom_row(HEIGHT)
         bubble_grid.addTopRow()
         bubble_grid.move(delta)
@@ -128,10 +136,10 @@ def update():
         if score.is_new_level(): # Triger level change
             next_level()
 
-def on_mouse_move (pos):
+def on_mouse_move(pos):
     ship.cross.pos = pos
 
-def on_mouse_down (pos, button):
+def on_mouse_down(pos, button):
     global bullets
     if mouse.LEFT == button:
         bullets += Bullet(ship.x, ship.y, ship.get_color(), ship.get_angle(pos))
@@ -158,25 +166,30 @@ def on_key_down(key):
 def next_level():
     global level, bubble_grid, bullets, droppers, new_level_msg, level_colors, \
            score
-    
+
     droppers = Dropper_List()
     bullets = Bullet_List()
     ship.reset_hull_size()
     level += 1
     score.next_level_points += 250 * level
-    
-    new_level_msg = f"Level {level}\nBubble Creation Rate +10%"
+
+    new_level_msg = f"Level {level}"
     
     if level == 5:
         level_colors = COLOR_LEVELS[1]
-        new_level_msg += "\nNew Color Added!"
+        new_level_msg += "\nBubble Creation Rate -20%\nNew Color Added!"
         ship.set_colors(level_colors)
+        bubble_grid = Bubble_Grid(level_colors, bubble_grid.velocity * .8)
     elif level == 10:
         level_colors = COLOR_LEVELS[2]
-        new_level_msg += "\nNew Color Added!"
+        new_level_msg += "\nBubble Creation Rate -20%\nNew Color Added!"
         ship.set_colors(level_colors)
+        bubble_grid = Bubble_Grid(level_colors, bubble_grid.velocity * .8)
+    else:
+        new_level_msg += "\nBubble Creation Rate +10%"
+        bubble_grid = Bubble_Grid(level_colors, bubble_grid.velocity * 1.1)
 
-    bubble_grid = Bubble_Grid(level_colors, bubble_grid.velocity * 1.1)
+    
     clock.schedule(clear_new_level_msg, 10.0)
 
 def clear_new_level_msg():

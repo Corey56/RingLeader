@@ -39,11 +39,6 @@ PyGame Zero Falling Matcher Game
 
 ## Planned Improvements
 - Structure
-    - Looping through same data structures repetitously?
-    - Move to OOP
-    - Move recerase to stack vs recursion
-    - Add game options to dictionary
-    - Initialize everything in initialize(globals to None)
 - Game Play
     - Pausing Game pauses level message
     - Choice of 3 random powerups for catching falling bubbles
@@ -52,3 +47,4 @@ PyGame Zero Falling Matcher Game
     - Landing Squash
     - Exploding match bubble
     - Dying ship
+- Port to multiplayer
