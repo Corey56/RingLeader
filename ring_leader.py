@@ -75,8 +75,7 @@ def initalize_game():
     ship = Ship((WIDTH // 2 + Bubble.BUBBLE_DIAMETER // 2, 
                  HEIGHT - 2*Bubble.BUBBLE_DIAMETER),
                  COLOR_LEVELS[0],
-                 Bubble.BUBBLE_DIAMETER,
-                 Ship.SHIP_ACCEL*Bubble.BUBBLE_DIAMETER)
+                 Bubble.BUBBLE_DIAMETER)
     # Displayed briefly on screen when points are earned/lost
     score = Score(500)
     game_state = 1 #1: Normal Play, 0: Game Over, 3: Paused, 5: Instruction 

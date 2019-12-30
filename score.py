@@ -15,6 +15,7 @@ class Score(object):
 
     def __iadd__(self, rhs):
         """
+        '+=' operator:
         Receives a single item or a list of items. The item may be an Alert 
          object, or a tuple of the form ((x,y),pts). 
         Alert objects are added to the alert list and pts are added to the 
@@ -44,36 +45,62 @@ class Score(object):
         return self
 
     def draw(self, screen, HEIGHT, WIDTH):
-        # Draws the score and next level threshold in bottom left 
+        """
+        Receives a PGZero screen object and the height and width of the game 
+         board.
+        Draws the score and next level threshold in bottom left.
+        Draws the score alerts
+        """
         screen.draw.text(f'{self.score}/{self.next_level_points}',
                          bottomleft=(10, HEIGHT-10))
         self.alerts.draw(screen, WIDTH)
 
     def is_new_level(self):
+        """
+        Tests and reports player's progression to the next level.
+        """
         if self.score >= self.next_level_points:
             return True
         
         return False
         
     def update(self, delta, HEIGHT):
+        """
+        Given a time delta since the last update and the height of the game
+         board, updates the score alert pop ups.
+        """
         self.alerts.update(delta, HEIGHT)
 
 class Alert(object):
+    """
+    Represents a single score notification which alerts player to newly scored
+     points. 
+    """
     SCORE_VELOCITY = -.02 # Constant upward movement of score alerts
-    SCORE_DURATION = 40 # Update cycles to display score alerts
+    SCORE_DURATION = 1 # Seconds to display score alerts
     
     def __init__(self, x, y, pts):
+        """
+        Initializes the position, points, life and velocity of an alert.
+        """
         self.x = x
         self.y = y
         self.pts = pts
-        self.life = Alert.SCORE_DURATION
+        self.life = Alert.SCORE_DURATION * 1000 #convert to ms
         self.vely = Alert.SCORE_VELOCITY
     
     def __str__(self):
+        """
+        Returns a formatted string for printing the Alert.
+        """
         atts = ['\t' + a + ': ' + str(v) for a,v in self.__dict__.items()]
         return type(self).__name__ + ' object:\n' + '\n'.join(atts)
 
     def draw(self, screen, WIDTH):
+        """
+        Given a PGZero screen object and the width of the board, draw this alert
+         on the screen.
+        """
         x, y, m = self.x, self.y, self.pts
         if x > WIDTH: #Off screen to right, adjust
             screen.draw.text(f'{m:+d}', midright=(WIDTH, y))
@@ -83,24 +110,37 @@ class Alert(object):
             screen.draw.text(f'{m:+d}', midtop=(x, y))
             
     def move(self, delta, HEIGHT):
-            self.life -= 1 # Decrement time to live
-            if self.y > HEIGHT: # Move low alerts up on to screen
-                self.y = HEIGHT-10
-            elif self.y < 5: # Move high alerts down 
-                self.y = 5
-                self.vely *= -1 # And make them float down instead of up
-            self.y += self.vely*delta # Float up slowly
+        """
+        Given miliseconds since the last update and the height of the game 
+         board, deduct the time from the alert's life and move the alert up or
+         down.
+        """
+        self.life -= delta # Decrement time to live
+        if self.y > HEIGHT: # Move low alerts up on to screen
+            self.y = HEIGHT-10
+        elif self.y < 5: # Move high alerts down 
+            self.y = 5
+            self.vely *= -1 # And make them float down instead of up
+        self.y += self.vely*delta # Float up slowly
             
 class Alerts_List(object):
+    """
+    Represents a list of Alert objects. Might be better to inherit from built in
+     list.
+    """
+    
     def __init__(self):
         self.contents = []
     
     def __str__(self):
+        """
+        Returns a formatted string for printing.
+        """
         if self.contents:
             s = 'Alerts_List:\n'
-            s += '     x pos     y pos   pts   life    vely\n'
+            s += '     x pos     y pos       pts      life      vely\n'
             for a in self.contents:
-                s += f'{a.x:10.2f}{a.y:10.2f}{a.pts:6}{a.life:5}{a.vely:10.2f}\n'
+                s += f'{a.x:10.2f}{a.y:10.2f}{a.pts:10}{a.life:10}{a.vely:10.2f}\n'
         else:
             s = 'Empty Alerts_List:\n'
         return s
@@ -121,14 +161,25 @@ class Alerts_List(object):
         del self.contents[key]
         
     def __iadd__(self, rhs):
+        """
+        '+=' operator appends a single Alert object
+        """
         self.contents.append(rhs)
         return self
 
     def draw(self, screen, WIDTH):
+        """
+        Given a PGZero screen object and the width of the game board, draws 
+         every alert in the list on the screen.
+        """
         for a in self.contents: 
             a.draw(screen, WIDTH)
             
     def update(self, delta, HEIGHT):
+        """
+        Given the time in ms since the last update and the height of the game
+         board, move each alert and delete the expired ones.
+        """
         cnt = 0
         while cnt < len(self.contents):
             self.contents[cnt].move(delta, HEIGHT)

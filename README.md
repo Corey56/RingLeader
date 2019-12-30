@@ -2,12 +2,13 @@
 PyGame Zero Falling Matcher Game
 
 ## Dependencies
-Python 3
-pgzero
+- Python 3
+- pgzero
 
-## Running
-from console: `python ring_leader.py`
-
+## Running from console:
+- Install Dependencies: `pip install pgzero`
+- Play the game: `python ring_leader.py`
+- Press 'p' to pause and then 'i' to view instructions.
 
 ## INSTRUCTIONS
 ### Controls

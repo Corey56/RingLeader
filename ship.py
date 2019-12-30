@@ -22,16 +22,15 @@ class Cross(object):
 class Ship(object):
     PURP = (62, 7, 120)   # Ship perimeter color
     FLAME = (237, 150, 9) # Ship Thruster Color
-    SHIP_ACCEL = .0003 #W,A,S,D depressed, speedup this much, decel on release
+    SHIP_ACCEL = .00048 #W,A,S,D depressed, speedup this much, decel on release
     
-    def __init__(self, pos, color_list, bubble_diameter, accel):
+    def __init__(self, pos, color_list, bubble_diameter):
         self.x, self.y = pos
         self.bullet_colors = color_list
         self.bullet_index = 0
         self.final_radius = bubble_diameter
         self.initial_radius = bubble_diameter
         self.current_radius = 0
-        self.accel = accel
         self.velx, self.vely  = 0, 0
         self.ethrust = False
         self.wthrust = False
@@ -83,11 +82,11 @@ class Ship(object):
             self.ethrust = True
             self.wthrust = True
         elif keyboard[keys.A]:
-            self.velx -= self.accel
+            self.velx -= Ship.SHIP_ACCEL * time_delta
             self.ethrust = True
             self.wthrust = False
         elif keyboard[keys.D]:
-            self.velx += self.accel
+            self.velx += Ship.SHIP_ACCEL * time_delta
             self.ethrust = False
             self.wthrust = True
         else: # Decelerate in the horizontal plane if A or D not depressed.
@@ -96,7 +95,7 @@ class Ship(object):
             sign = 1
             if self.velx < 0:
                 sign = -1
-            self.velx = abs(self.velx) - self.accel
+            self.velx = abs(self.velx) - Ship.SHIP_ACCEL * time_delta
             if self.velx < 0:
                 self.velx = 0
             else:
@@ -107,11 +106,11 @@ class Ship(object):
             self.nthrust = True
             self.sthrust = True
         elif keyboard[keys.W]:
-            self.vely -= self.accel
+            self.vely -= Ship.SHIP_ACCEL * time_delta
             self.sthrust = True
             self.nthrust = False
         elif keyboard[keys.S]:
-            self.vely += self.accel
+            self.vely += Ship.SHIP_ACCEL * time_delta
             self.nthrust = True
             self.sthrust = False
         else: # Decelerate in the vertical plane if W or S not depressed.
@@ -120,7 +119,7 @@ class Ship(object):
             sign = 1
             if self.vely < 0:
                 sign = -1
-            self.vely = abs(self.vely) - self.accel
+            self.vely = abs(self.vely) - Ship.SHIP_ACCEL * time_delta
             if self.vely < 0:
                 self.vely = 0
             else:
