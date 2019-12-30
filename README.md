@@ -6,10 +6,8 @@ Python 3
 pgzero
 
 ## Running
-from console
-'''
-python ring_leader.py
-'''
+from console: `python ring_leader.py`
+
 
 ## INSTRUCTIONS
 ### Controls

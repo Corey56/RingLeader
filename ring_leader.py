@@ -63,9 +63,8 @@ COLOR_LEVELS = [[(173, 207, 25),(25, 207, 195),(186, 25, 207)], # 3 color
 
 # Procedure starts / restarts the game when the 'r' key is pressed
 def initalize_game():
-    global bubble_grid, droppers, ship, bullets, score, \
-           new_level_msg,\
-           game_state, level, level_colors, c\
+    global bubble_grid, droppers, ship, bullets, score, new_level_msg,\
+           game_state, level, level_colors, c
     
     bubble_grid = Bubble_Grid(COLOR_LEVELS[0])
     # list of all bubbles broken free from grid and falling 
@@ -158,8 +157,8 @@ def on_key_down(key):
             game_state = 3
 
 def next_level():
-    global level, bubble_grid, bullets, \
-        droppers, new_level_msg, level_colors, score
+    global level, bubble_grid, bullets, droppers, new_level_msg, level_colors, \
+           score
     
     droppers = Dropper_List()
     bullets = Bullet_List()

@@ -1,14 +1,27 @@
-"""
-Ring Leader
-"""
-
 class Score(object):
+    """
+    Keeps track of the game score, points required to reach the next level and
+     a list of alerts which notify the player of points scored.
+    """
     def __init__(self, nlp):
+        """
+        Receives an integer value for the points required to reach the next
+         level. Sets the player's score to zero and score alerts to an empty
+         list.
+        """
         self.score = 0
         self.next_level_points = nlp
         self.alerts = Alerts_List()
 
     def __iadd__(self, rhs):
+        """
+        Receives a single item or a list of items. The item may be an Alert 
+         object, or a tuple of the form ((x,y),pts). 
+        Alert objects are added to the alert list and pts are added to the 
+         player's score. The player can't score more points than those required 
+         to reach the next level. If the player loses points, the score can't be
+         reduced below 0 points.
+        """
         if type(rhs) is not list:
             rhs = [rhs]
         
@@ -18,14 +31,14 @@ class Score(object):
             
             p_max = self.next_level_points - self.score
             
-            if alert.pts > p_max:
+            if alert.pts > p_max: # Scored more than next level threshold
                 alert.pts = p_max
-            elif -alert.pts > self.score:
+            elif -alert.pts > self.score: # Would take the player below zero pts
                 alert.pts = -self.score
 
             self.score += alert.pts
             
-            if alert.pts:
+            if alert.pts: # Don't create an alert for zero points
                 self.alerts += alert
         
         return self
@@ -69,6 +82,15 @@ class Alert(object):
         else:
             screen.draw.text(f'{m:+d}', midtop=(x, y))
             
+    def move(self, delta, HEIGHT):
+            self.life -= 1 # Decrement time to live
+            if self.y > HEIGHT: # Move low alerts up on to screen
+                self.y = HEIGHT-10
+            elif self.y < 5: # Move high alerts down 
+                self.y = 5
+                self.vely *= -1 # And make them float down instead of up
+            self.y += self.vely*delta # Float up slowly
+            
 class Alerts_List(object):
     def __init__(self):
         self.contents = []
@@ -109,17 +131,8 @@ class Alerts_List(object):
     def update(self, delta, HEIGHT):
         cnt = 0
         while cnt < len(self.contents):
-            y, vely, life = (self.contents[cnt].y, 
-                             self.contents[cnt].vely, 
-                             self.contents[cnt].life)
-            self.contents[cnt].life -= 1 # Decrement time to live
-            if y > HEIGHT: # Move low alerts up on to screen
-                self.contents[cnt].y = HEIGHT-5
-            elif y < 5: # Move high alerts down 
-                self.contents[cnt].y = 5
-                self.contents[cnt].vely *= -1 # And make them float down instead of up
-            self.contents[cnt].y += vely*delta # Float up slowly
-            if life < 0: # Time expired
+            self.contents[cnt].move(delta, HEIGHT)
+            if self.contents[cnt].life < 0: # Time expired
                 del self.contents[cnt]
             else:
                 cnt += 1
