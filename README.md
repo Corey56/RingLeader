@@ -40,7 +40,6 @@ PyGame Zero Falling Matcher Game
 ## Planned Improvements
 - Structure
 - Game Play
-    - Pausing Game pauses level message
     - Choice of 3 random powerups for catching falling bubbles
 - Animations
     - Falling wiggle

@@ -3,13 +3,13 @@ This module contains configuration constants for the ring leader game and
  composite classes.
 """
 BUBBLE_PADDING = 4 # Distance between grid bubbles (pix)
-BOARD_WIDTH = 28  # Bubbles wide game board
-MARGINS = 10 # dist between grid and horizontal screen edge
-MATCH_LENGTH = 4 # Bubbles in a row to match
+BOARD_WIDTH = 28   # Bubbles wide game board
+MARGINS = 10       # dist between grid and horizontal screen edge
+MATCH_LENGTH = 4   # Bubbles in a row to match
 INITIAL_BUBBLE_VELOCITY = .0032 # fall of new bubbles from top (pix/ms)
 #Alert
 SCORE_VELOCITY = -.02 # Constant upward movement of score alerts (pix/ms)
-SCORE_DURATION = 1 # Seconds to display score alerts
+SCORE_DURATION = 1    # Seconds to display score alerts
 #Bubble
 BUBBLE_DIAMETER = 32 # Diameter of all buubles in pix
 #Bullet
@@ -21,26 +21,27 @@ FALLING_BUBBLE_POINTS = 4 # Points received for a falling bubble
 #Ship
 PURP = (62, 7, 120)   # Ship perimeter color
 FLAME = (237, 150, 9) # Ship Thruster Color
-SHIP_ACCEL = .00048        # Acceleration on key hold
+SHIP_ACCEL = .00048   # Acceleration on key hold
 HULL_RADIUS = 32      # in pix
 HIT_GROW = 8          # ship growth when struck by a falling bubble (pix)
-
+#Main Game
 BOARD_HEIGHT = 20 #Height of screen in Bubbles
 # Total Width of the screen based on bubbles
-WIDTH = (BUBBLE_DIAMETER * BOARD_WIDTH
-         + BUBBLE_PADDING * (BOARD_WIDTH-1)
-         + MARGINS * 2)
+WIDTH = (BUBBLE_DIAMETER*BOARD_WIDTH+BUBBLE_PADDING*(BOARD_WIDTH-1)+MARGINS*2)
 # Total Height of the screen based on bubbles
-HEIGHT = (BUBBLE_DIAMETER*BOARD_HEIGHT
-          + BUBBLE_PADDING * BOARD_HEIGHT)
-
+HEIGHT = (BUBBLE_DIAMETER*BOARD_HEIGHT+BUBBLE_PADDING*BOARD_HEIGHT)
 BLACK = (0,0,0)       # Background Color
+# 3, 4, 5 RGB color lists for difficulty level
+COLOR_LEVELS = [[(173,207,25),(25,207,195),(186,25,207)],
+               [(207,195,25),(25,207,55),(25,70,207),(198,25,207)],
+               [(199,196,28),(37,199,28),(28,199,193),(65,28,199),(199,28,188)]]
 
 #Multiline String Games message constants
 PAUSE_MESSAGE = """PAUSED
 (unpause with 'p' key)
 (restart with 'r' key)
 (view instructions with i)"""
+
 INSTRUCTIONS = """Controls
 - Maneuver Ship with W,A,S,D
 - Aim with mouse and crosshairs
@@ -68,10 +69,6 @@ Scoring
 - Points are deducted for any bullets which fly out of bounds.
 
 Press 'I' to return to pause screen"""
+
 GAME_OVER_MSG = """GAME OVER
 press 'r' to play again"""
-
-# 3, 4, 5 color lists for difficulty level
-COLOR_LEVELS = [[(173, 207, 25),(25, 207, 195),(186, 25, 207)], # 3 color
-           [(207, 195, 25),(25, 207, 55),(25, 70, 207),(198, 25, 207)], #4 color
-  [(199, 196, 28),(37, 199, 28),(28, 199, 193),(65, 28, 199),(199, 28, 188)]] #5

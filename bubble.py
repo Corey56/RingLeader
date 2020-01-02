@@ -605,6 +605,10 @@ class Bubble_Grid(object):
         return False
 
     def move(self, time_delta):
+        """
+        Given the time in ms since last update, move each bubble down at self
+         .velocity pix/ms. If self.speed_rows > 0, bubbles fall 16 times faster.
+        """
         delta_y = self.velocity * time_delta
         if self.speed_rows:
             delta_y *= 16
@@ -613,36 +617,47 @@ class Bubble_Grid(object):
                 b.y += delta_y
 
     def erase_matches(self):
-        combos = []
+        """
+        Get a list of i,j position matches from get_matches(). Erase all 
+         consecutive bubbles of the same color begining at each match position.
+        Store a tuple in combos list for each combo scored. A combo must contain 
+         at least one player bullet to score points. The combos list is returned
+         to update player's score.
+        """
+        combos = [] #[((x,y),pts), ...]
         for match in self.get_matches():
             bulletFound = None
             combo_bubbles = 0
-            path = [match]
+            path = [match] #Stack to walk matches
             while path:
                 r, c = path.pop()
                 b = self.rows[r][c]
                 color = b.color
                 if not color:
                     continue
-                if b.bulletFlag:
+                if b.bulletFlag: # Found a bullet, place alert location here
                     bulletFound = (b.x,b.y)
                 else:
                     combo_bubbles += 1
                 b.color = None
                 n = ((r+1,c), (r-1,c), (r, c+1), (r, c-1))
-                for nei in n:
+                for nei in n: # Try 4 cardinal neighbors
                     i, j = nei
-                    if (i in range(len(self.rows))
-                            and j in range(BOARD_WIDTH)
-                            and self.rows[i][j].color == color):
+                    if (i in range(len(self.rows))               # valid row
+                            and j in range(BOARD_WIDTH)          # valid column
+                            and self.rows[i][j].color == color): # color match
                         path.append((i, j))
 
-            if bulletFound:
+            if bulletFound: # Only award points if player created this combo
                 combos.append((bulletFound, 2**combo_bubbles))
 
         return combos
 
     def falling_bubble_lands(self, fb):
+        """
+        Given a Dropper, check falling column for landing back on the grid.
+        Return True if Dropper lands and False otherwise.
+        """
         y, c, j = fb.y, fb.color, fb.column
         d = BUBBLE_DIAMETER + BUBBLE_PADDING
         for i, row in enumerate(self.rows):
