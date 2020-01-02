@@ -5,6 +5,7 @@ This file contains the Ring Leader game which has the following dependencies.
 - score.py
 - bubble.py
 - ship.py
+- config.py
 
 - Install Dependencies: `pip install pgzero`
 - Play the game: `python ring_leader.py`
@@ -14,61 +15,11 @@ This file contains the Ring Leader game which has the following dependencies.
 import pgzrun
 from pygame.time import Clock
 
-from ship import *
-from bubble import *
-from score import *
-
-# Configuration Constants-------------------------------------------------------
-BOARD_HEIGHT = 20 #Height of screen in Bubbles
-# Total Width of the screen based on bubbles
-WIDTH = (Bubble.BUBBLE_DIAMETER * Bubble_Grid.BOARD_WIDTH
-         + Bubble_Grid.BUBBLE_PADDING * (Bubble_Grid.BOARD_WIDTH-1)
-         + Bubble_Grid.MARGINS * 2)
-# Total Height of the screen based on bubbles
-HEIGHT = (Bubble.BUBBLE_DIAMETER*BOARD_HEIGHT
-          + Bubble_Grid.BUBBLE_PADDING * BOARD_HEIGHT)
-
-BLACK = (0,0,0)       # Background Color
-
-#Multiline String Games message constants
-PAUSE_MESSAGE = """PAUSED
-(unpause with 'p' key)
-(restart with 'r' key)
-(view instructions with i)"""
-INSTRUCTIONS = """Controls
-- Maneuver Ship with W,A,S,D
-- Aim with mouse and crosshairs
-- Left Mouse Button Fires Bubbles
-- Space Bar cycles available colors
-- Right click to speed out the next row
-- p to pause game
-- r to restart game
-
-Gameplay
-- Fire bubbles to make rows and columns of
-  4 consecutive bubbles of the same color.
-- Maneuver your ship to avoid all Bubbles.
-- Bubbles creeping downward will destroy your ship on contact.
-- Falling bubbles which strike your ship will cause it to grow.
-
-Scoring
-- Awarded points scale exponentially with the number
-  of bubbles popped in a single combo. Bubbles created
-  by player bullets do not score points.
-- You cannot score more points than required to reach
-  the next level with a combo.
-- Points are awarded for any falling bubbles
-  which do not strike the player's vessel.
-- Points are deducted for any bullets which fly out of bounds.
-
-Press 'I' to return to pause screen"""
-GAME_OVER_MSG = """GAME OVER
-press 'r' to play again"""
-
-# 3, 4, 5 color lists for difficulty level
-COLOR_LEVELS = [[(173, 207, 25),(25, 207, 195),(186, 25, 207)], # 3 color
-           [(207, 195, 25),(25, 207, 55),(25, 70, 207),(198, 25, 207)], #4 color
-  [(199, 196, 28),(37, 199, 28),(28, 199, 193),(65, 28, 199),(199, 28, 188)]] #5
+from ship import Ship
+from bubble import Bubble_Grid, Bullet_List, Dropper_List, Bullet
+from score import Score
+from config import HEIGHT, WIDTH, COLOR_LEVELS, HULL_RADIUS, BLACK, \
+                   PAUSE_MESSAGE, INSTRUCTIONS, GAME_OVER_MSG
 
 # Procedure starts / restarts the game when the 'r' key is pressed
 def initalize_game():
@@ -81,9 +32,7 @@ def initalize_game():
     # List of bullets fired from the player's ship
     bullets = Bullet_List()
     level_colors = COLOR_LEVELS[0] #start with 3 colors and increase
-    ship = Ship((WIDTH // 2 + Bubble.BUBBLE_DIAMETER // 2,
-                 HEIGHT - 2*Bubble.BUBBLE_DIAMETER),
-                 COLOR_LEVELS[0])
+    ship = Ship((WIDTH // 2, HEIGHT - 2*HULL_RADIUS), COLOR_LEVELS[0])
     # Displayed briefly on screen when points are earned/lost
     score = Score(500)
     game_state = 1 #1: Normal Play, 0: Game Over, 3: Paused, 5: Instruction
@@ -100,7 +49,7 @@ def draw():
     ship.draw(screen)
     bullets.draw(screen)
     droppers.draw(screen)
-    score.draw(screen, HEIGHT, WIDTH)
+    score.draw(screen)
     if new_level_msg: # Briefly introduce changes for a level
         screen.draw.text(new_level_msg , centery=(HEIGHT//4), centerx=WIDTH//2)
     if not game_state:
@@ -118,21 +67,21 @@ def update():
 
     if game_state == 1: # Normal Game Play
         bullets.move(delta)
-        score += bullets.check_bounds(HEIGHT, WIDTH)
+        score += bullets.check_bounds()
         bullets.delete_strikers(bubble_grid)
         droppers.move(delta)
-        score += droppers.check_bounds(HEIGHT)
+        score += droppers.check_bounds()
         droppers.land(bubble_grid)
         droppers.strike(ship)
-        bubble_grid.prune_bottom_row(HEIGHT)
+        bubble_grid.prune_bottom_row()
         bubble_grid.addTopRow()
         bubble_grid.move(delta)
         score += bubble_grid.erase_matches()
         droppers += bubble_grid.drop_loose_bubbles()
-        ship.update(delta, keyboard, keys, WIDTH, HEIGHT)
+        ship.update(delta, keyboard, keys)
         if bubble_grid.collide(ship.x, ship.y, ship.current_radius):
             game_state = 0
-        score.update(delta, HEIGHT)
+        score.update(delta)
         if score.is_new_level(): # Triger level change
             next_level()
 

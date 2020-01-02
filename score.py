@@ -1,20 +1,22 @@
 """
 This module contains the Score, Alert and Alerts_List classes.
 """
+from config import HEIGHT, WIDTH, SCORE_DURATION, SCORE_VELOCITY
 
 class Score(object):
     """
     Keeps track of the game score, points required to reach the next level and
      a list of alerts which notify the player of points scored.
+    score: integer points accumulated this game
+    next_level_points: integer points required to reach the next level
+    alerts: Alerts_List object to hold pop up score notifications
     """
-
     def __init__(self, nlp):
         """
         Receives an integer value for the points required to reach the next
          level. Sets the player's score to zero and score alerts to an empty
          list.
         """
-
         self.score = 0
         self.next_level_points = nlp
         self.alerts = Alerts_List()
@@ -29,7 +31,6 @@ class Score(object):
          to reach the next level. If the player loses points, the score can't be
          reduced below 0 points.
         """
-
         if type(rhs) is not list:
             rhs = [rhs]
 
@@ -51,42 +52,38 @@ class Score(object):
 
         return self
 
-    def draw(self, screen, HEIGHT, WIDTH):
+    def draw(self, screen):
         """
         Receives a PGZero screen object and the height and width of the game
          board.
         Draws the score and next level threshold in bottom left.
         Draws the score alerts
         """
-
         screen.draw.text(f'{self.score}/{self.next_level_points}',
                          bottomleft=(10, HEIGHT-10))
-        self.alerts.draw(screen, WIDTH)
+        self.alerts.draw(screen)
 
     def is_new_level(self):
         """
         Tests and reports player's progression to the next level.
         """
-
         if self.score >= self.next_level_points:
             return True
 
         return False
 
-    def update(self, delta, HEIGHT):
+    def update(self, delta):
         """
         Given a time delta since the last update and the height of the game
          board, updates the score alert pop ups.
         """
 
-        self.alerts.update(delta, HEIGHT)
+        self.alerts.update(delta)
 
 class Alerts_List(object):
     """
-    Represents a list of Alert objects. Might be better to inherit from built in
-     list.
+    Represents a list of Alert objects.
     """
-
     def __init__(self):
         self.contents = []
 
@@ -94,7 +91,6 @@ class Alerts_List(object):
         """
         Returns a formatted string for printing.
         """
-
         if self.contents:
             s = 'Alerts_List:\n'
             s += '     x pos     y pos       pts      life      vely\n'
@@ -123,28 +119,25 @@ class Alerts_List(object):
         """
         '+=' operator appends a single Alert object
         """
-
         self.contents.append(rhs)
         return self
 
-    def draw(self, screen, WIDTH):
+    def draw(self, screen):
         """
         Given a PGZero screen object and the width of the game board, draws
          every alert in the list on the screen.
         """
-
         for a in self.contents:
-            a.draw(screen, WIDTH)
+            a.draw(screen)
 
-    def update(self, delta, HEIGHT):
+    def update(self, delta):
         """
         Given the time in ms since the last update and the height of the game
          board, move each alert and delete the expired ones.
         """
-
         cnt = 0
         while cnt < len(self.contents):
-            self.contents[cnt].move(delta, HEIGHT)
+            self.contents[cnt].move(delta)
             if self.contents[cnt].life < 0: # Time expired
                 del self.contents[cnt]
             else:
@@ -154,36 +147,34 @@ class Alert(object):
     """
     Represents a single score notification which alerts player to newly scored
      points.
+    x: float x position in pixels
+    y: float y position in pixels
+    pts: points scored in this alert
+    life: time alert displays in ms
+    vely: float y velocity in pix/ms
     """
-
-    SCORE_VELOCITY = -.02 # Constant upward movement of score alerts (pix/ms)
-    SCORE_DURATION = 1 # Seconds to display score alerts
-
     def __init__(self, x, y, pts):
         """
         Initializes the position, points, life and velocity of an alert.
         """
-
         self.x = x
         self.y = y
         self.pts = pts
-        self.life = Alert.SCORE_DURATION * 1000 #convert to ms
-        self.vely = Alert.SCORE_VELOCITY
+        self.life = SCORE_DURATION * 1000 #convert to ms
+        self.vely = SCORE_VELOCITY
 
     def __str__(self):
         """
         Returns a formatted string for printing the Alert.
         """
-
         atts = ['\t' + a + ': ' + str(v) for a,v in self.__dict__.items()]
         return type(self).__name__ + ' object:\n' + '\n'.join(atts)
 
-    def draw(self, screen, WIDTH):
+    def draw(self, screen):
         """
         Given a PGZero screen object and the width of the board, draw this alert
          on the screen.
         """
-
         x, y, m = self.x, self.y, self.pts
         if x > WIDTH: #Off screen to right, adjust
             screen.draw.text(f'{m:+d}', midright=(WIDTH, y))
@@ -192,13 +183,12 @@ class Alert(object):
         else:
             screen.draw.text(f'{m:+d}', midtop=(x, y))
 
-    def move(self, delta, HEIGHT):
+    def move(self, delta):
         """
         Given miliseconds since the last update and the height of the game
          board, deduct the time from the alert's life and move the alert up or
          down.
         """
-
         self.life -= delta # Decrement time to live
         if self.y > HEIGHT: # Move low alerts up on to screen
             self.y = HEIGHT-10

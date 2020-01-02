@@ -15,13 +15,18 @@ from random import choice
 from math import sin, cos
 
 from dist import *
+from config import INITIAL_BUBBLE_VELOCITY, HEIGHT, WIDTH, BUBBLE_DIAMETER, \
+                   MATCH_LENGTH, BUBBLE_PADDING, BUBBLE_GRAVITY, MARGINS, \
+                   BOARD_WIDTH, BULLET_VELOCITY, FALLING_BUBBLE_POINTS, \
+                   LOST_BULLET_PENALTY
 
 class Bubble(object):
     """
     Represents a generic bubble for sub classing
+    x: x position in pix
+    y: y position in pix
+    color: RGB tuple
     """
-    
-    BUBBLE_DIAMETER = 32 # Diameter of all buubles in pix
 
     def __init__(self, x, y, color):
         """
@@ -46,10 +51,10 @@ class Bubble(object):
         """
         if self.color:
             screen.draw.filled_circle((self.x, self.y),
-                                       Bubble.BUBBLE_DIAMETER//2,
+                                       BUBBLE_DIAMETER//2,
                                        self.color)
                                        
-    def is_off_screen(self, HEIGHT, WIDTH):
+    def is_off_screen(self):
         """
         Given the height and width of the game board in pix, return boolean for
          bubble off screen
@@ -59,9 +64,8 @@ class Bubble(object):
 class Bullet(Bubble):
     """
     Represents a bullet fired from the player's ship.
+    angle: Angle of travel in radians
     """
-    BULLET_VELOCITY = .64   # speed of a fired bullet (pix/ms)
-    LOST_BULLET_PENALTY = 4 # Points lost for an errant bullet
 
     def __init__(self, x, y, color, ang):
         """
@@ -74,15 +78,15 @@ class Bullet(Bubble):
         """
         Given ms since the last update, move bullet at set speed on angle
         """
-        self.x += Bullet.BULLET_VELOCITY * cos(self.angle) * time_delta # x vect
-        self.y -= Bullet.BULLET_VELOCITY * sin(self.angle) * time_delta # y vect
+        self.x += BULLET_VELOCITY * cos(self.angle) * time_delta # x vect
+        self.y -= BULLET_VELOCITY * sin(self.angle) * time_delta # y vect
 
 class Dropper(Bubble):
     """
     Represents a bubble falling downward after breaking free from bubble grid
+    vely: falling speed in pix/ms
+    column: integer index of falling column 0 - BOARD_WIDTH-1
     """
-    BUBBLE_GRAVITY = .0003    # accellerate downward (pix/ms**2)
-    FALLING_BUBBLE_POINTS = 4 # Points received for a falling bubble
 
     def __init__(self, x, y, color, vely, column):
         """
@@ -97,11 +101,13 @@ class Dropper(Bubble):
         Given time since last update in ms, accellerate dropper downward
         """
         self.y += self.vely * time_delta
-        self.vely += Dropper.BUBBLE_GRAVITY * time_delta
+        self.vely += BUBBLE_GRAVITY * time_delta
 
 class Grid_Bubble(Bubble):
     """
     Represents a bubble in the grid
+    bulletFlag: indicates if this grid bubble came from a Bullet for scoring
+                purposes
     """
     def __init__(self, x, y, color, bulletFlag):
         """
@@ -113,6 +119,7 @@ class Grid_Bubble(Bubble):
 class Bubble_List(object):
     """
     Represents a generic list of Bubble sub classes
+    contents: a list of Bubble object subclasses
     """
     def __init__(self):
         self.contents = []
@@ -191,9 +198,9 @@ class Bullet_List(Bubble_List):
             s = 'Empty Bullet_List:'
         return s
 
-    def check_bounds(self, HEIGHT, WIDTH):
+    def check_bounds(self):
         """
-        Given the height an width of the game board in pix, return a list of 
+        Given the height and width of the game board in pix, return a list of 
          tuples representing bullets that flew off the screen. Also erase such 
          bullets from the list
         """
@@ -201,8 +208,8 @@ class Bullet_List(Bubble_List):
         cnt = 0
         while cnt < len(self.contents):
             b = self.contents[cnt]
-            if b.is_off_screen(HEIGHT, WIDTH):
-                oob.append(((b.x, b.y), -Bullet.LOST_BULLET_PENALTY))
+            if b.is_off_screen():
+                oob.append(((b.x, b.y), -LOST_BULLET_PENALTY))
 
                 del self.contents[cnt]
             else:
@@ -240,7 +247,7 @@ class Dropper_List(Bubble_List):
             s = 'Empty Dropper_List:'
         return s
 
-    def check_bounds(self, HEIGHT):
+    def check_bounds(self):
         """
         Given the height of the game board, return a list of tuples with the 
          locations of droppers that fell off the bottom ot the screen. Also 
@@ -251,7 +258,7 @@ class Dropper_List(Bubble_List):
         while cnt < len(self.contents):
             fb = self.contents[cnt]
             if fb.y > HEIGHT: # fell off screen. Award points and remove
-                oob.append(((fb.x, fb.y), Dropper.FALLING_BUBBLE_POINTS))
+                oob.append(((fb.x, fb.y), FALLING_BUBBLE_POINTS))
                 del self.contents[cnt]
             else:
                 cnt += 1
@@ -266,7 +273,7 @@ class Dropper_List(Bubble_List):
         while cnt < len(self.contents):
             fb = self.contents[cnt]
 
-            if ship.hit_ship(fb.x,fb.y, Bubble.BUBBLE_DIAMETER//2):
+            if ship.hit_ship(fb.x,fb.y, BUBBLE_DIAMETER//2):
                 del self.contents[cnt]
             else:
                 cnt += 1
@@ -284,23 +291,28 @@ class Dropper_List(Bubble_List):
                 cnt += 1
 
 class Bubble_Grid(object):
-    BUBBLE_PADDING = 4              # Distance between grid bubbles (pix)
-    BOARD_WIDTH = 28                # Bubbles wide game board
-    MARGINS = 10                  # dist between grid and horizontal screen edge
-    MATCH_LENGTH = 4                # Bubbles in a row to match
-    INITIAL_BUBBLE_VELOCITY = .0032 # fall of new bubbles from top (pix/ms)
+    """
+    Represents the grid of bubbles falling slowly from the top of the screen
+    colors: list of RGB colors to make new grid bubbles
+    velocity: speed of bubble generation from screen top
+    rows: a list of Bubble_Row objects
+    speed_rows: number of rows to speed out at level begining
+    """
 
     def __init__(self, colors, velocity=None):
         if velocity:
             self.velocity = velocity
         else:
-            self.velocity = Bubble_Grid.INITIAL_BUBBLE_VELOCITY
+            self.velocity = INITIAL_BUBBLE_VELOCITY
 
         self.colors = colors
         self.rows = []
-        self.speed_rows = Bubble_Grid.MATCH_LENGTH
+        self.speed_rows = MATCH_LENGTH
 
     def __str__(self):
+        """
+        Returns a formatted string for printing
+        """
         if self.rows:
             s = 'Bubble Grid:'
             for i, b in enumerate(self.rows):
@@ -329,69 +341,85 @@ class Bubble_Grid(object):
             r.draw(screen)
 
     def addBottomRow(self):
+        """
+        Adds a new bottom row at bottom of screen in position 0 of self.rows
+        """
         nbr = Bubble_Row()
 
         # base coordinates on current first row bullet
         x = self.rows[0][0].x
-        y = (self.rows[0][0].y
-             + Bubble.BUBBLE_DIAMETER
-             + Bubble_Grid.BUBBLE_PADDING)
+        y = (self.rows[0][0].y + BUBBLE_DIAMETER + BUBBLE_PADDING)
 
-        for j in range(Bubble_Grid.BOARD_WIDTH):
+        for j in range(BOARD_WIDTH):
             # color of None adds blank place holders
             nbr += Grid_Bubble(x,y,None,False)
-            x += Bubble.BUBBLE_DIAMETER + Bubble_Grid.BUBBLE_PADDING
+            x += BUBBLE_DIAMETER + BUBBLE_PADDING
 
         self.rows.insert(0, nbr)
 
     def addTopRow(self):
-        if self.rows and self.rows[-1][0].y < Bubble.BUBBLE_DIAMETER//2 \
-                                              + Bubble_Grid.BUBBLE_PADDING:
+        """
+        Appends a new Bubble_Row to self.rows with no horizontal matches.
+        Decrements self.speed_rows if > 0.
+        """
+        # Check if there's space at top of screen for new row.
+        if self.rows and self.rows[-1][0].y < BUBBLE_DIAMETER//2 \
+                                               + BUBBLE_PADDING:
             return
-
+        
+        # Distance between bubble centers
+        offset = BUBBLE_PADDING + BUBBLE_DIAMETER
+        
+        # Distance the new row from the one below it. 
         if not self.rows:
-            y = -Bubble.BUBBLE_DIAMETER // 2 #Barely off the screen
+            y = -BUBBLE_DIAMETER // 2 # Barely off the screen if no row exists
         else:
-            y = self.rows[-1][0].y - (Bubble_Grid.BUBBLE_PADDING
-                                      + Bubble.BUBBLE_DIAMETER)
-        x = Bubble_Grid.MARGINS + Bubble.BUBBLE_DIAMETER // 2 # First column
+            y = self.rows[-1][0].y - offset
+            
+        x = MARGINS + BUBBLE_DIAMETER // 2 # First column
         nbr = Bubble_Row()
-        nbr += Grid_Bubble(x, y, choice(self.colors), False)
-        x += Bubble_Grid.BUBBLE_PADDING + Bubble.BUBBLE_DIAMETER
+        nbr += Grid_Bubble(x, y, choice(self.colors), False) # Add 1st bubble
+        x += offset # Move right to next spot
         last_color = nbr[0].color # Track this to ensure no horizontal matches
         consec = 1
-        for j in range(Bubble_Grid.BOARD_WIDTH-1):
-            c = choice(self.colors)
-            while consec == Bubble_Grid.MATCH_LENGTH-1 and c == last_color:
-                c = choice(self.colors)
-            if last_color == c:
+        cs = set(self.colors)
+        for j in range(BOARD_WIDTH-1):
+            if consec == MATCH_LENGTH-1: # Avoid horizontal match
+                c = choice(tuple(cs - set([last_color])))
+            else: 
+                c = choice(self.colors)            
+            nbr += Grid_Bubble(x, y, c, False)
+            x += offset
+            if c == last_color:
                 consec += 1
             else:
-                consec = 1
                 last_color = c
-            nbr += Grid_Bubble(x, y, c, False)
-            x += Bubble_Grid.BUBBLE_PADDING + Bubble.BUBBLE_DIAMETER
+                consec = 1
+
         self.rows.append(nbr)
 
         if self.speed_rows:
             self.speed_rows -= 1
 
-    # Function takes the coordinates of bullet and returns true if the bullet
-    #  colides with the kill bubble grid.
-    # Returns true for collision and False otherwise. Uses is_close() and distance()
-    #  to verify collision and find the nearest kill bubble.
-    # If the bullet collides with a kill bubble assimilate_bullet() is called to add
-    #  the bullet to the kill bubble grid.
     def bullet_collide(self, bullet):
+        """
+        Function takes a Bullet object and returns true if the bullet colides 
+         with any Bubble in the grid.
+        Returns true for collision and False otherwise. Uses is_close() and 
+         distance() to verify collision.
+        Calls findNearestSpot upon collision to find the nearest spot to place 
+         the Bullet in the Bubble_Grid.
+        Calls addGridBubble to add the Bullet to the grid.
+        """
         x, y, c = bullet.x, bullet.y, bullet.color
         close_bubble = None #(i,j,dist)
         for i, row in enumerate(self.rows):
             for j, b in enumerate(row):
                 # Use is_close() to find potential matches (city block distance)
-                if b.color and is_close(x, y, b.x, b.y, Bubble.BUBBLE_DIAMETER):
+                if b.color and is_close(x, y, b.x, b.y, BUBBLE_DIAMETER):
                     # Use euclidian distance for precision
                     d = distance(x, y, b.x, b.y)
-                    if d < Bubble.BUBBLE_DIAMETER:
+                    if d < BUBBLE_DIAMETER:
                         # find the closest bubble if multiple in range
                         if close_bubble:
                             if d < close_bubble[2]:
@@ -399,7 +427,7 @@ class Bubble_Grid(object):
                         else:
                             close_bubble = (i,j,d)
 
-        if close_bubble: # collided with this kill bubble
+        if close_bubble: # collided with this grid bubble
             n = self.findNearestSpot(x, y, close_bubble[0], close_bubble[1])
             self.addGridBubble(*n, c)
             return True
@@ -407,10 +435,15 @@ class Bubble_Grid(object):
         return False
 
     def findNearestSpot(self, x, y, i, j):
+        """
+        Given x, y position and Grid_Bubble location i, j, return the available
+         spot nearest the position and a bool to indicate if this position 
+         requires a new row be added to the grid: (i, j, newRowFlag)
+        """
         n_list = [] #[(dist, (i,j), newRowFlag)...up, down, left, right]
 
         row_range = range(len(self.rows))
-        col_range = range(Bubble_Grid.BOARD_WIDTH)
+        col_range = range(BOARD_WIDTH)
 
         if i+1 in row_range and not self.rows[i+1][j].color: #up
             x1 = self.rows[i][j].x
@@ -429,9 +462,7 @@ class Bubble_Grid(object):
 
         if i == 0: #new bottom row
             x1 = self.rows[0][j].x
-            y1 = (self.rows[0][j].y
-                  + Bubble.BUBBLE_DIAMETER
-                  + Bubble_Grid.BUBBLE_PADDING)
+            y1 = (self.rows[0][j].y + BUBBLE_DIAMETER + BUBBLE_PADDING)
             n_list.append((distance(x, y, x1, y1), (0, j), True))
 
         elif i-1 in row_range and not self.rows[i-1][j].color: # down
@@ -445,6 +476,11 @@ class Bubble_Grid(object):
 
 
     def addGridBubble(self, i, j, new_row_flag, c):
+        """
+        Given an i, j location and a color, add a Bubble to the grid creating a
+         new Bubble_Row if required by flag. Set the bulletFlag on this bubble
+         for scoring purposes.
+        """
         if new_row_flag: # Add new row if neccessary
             self.addBottomRow()
 
@@ -453,8 +489,14 @@ class Bubble_Grid(object):
         self.rows[i][j].bulletFlag = True
 
     def drop_loose_bubbles(self):
+        """
+        From every Bubble in the top row, attempt to reach every grid bubble, 
+         storing all reachable bubbles in the keep list. Any grid bubbles not
+         on the keep list are removed from the grid and returned in a list of 
+         Droppers.
+        """
         num_rows = len(self)
-        col_range = range(Bubble_Grid.BOARD_WIDTH)
+        col_range = range(BOARD_WIDTH)
         keep = [] #Bubbles connected to top row [(i,j), ...]
         for j in col_range:
             i = num_rows-1 # loop through top row of bubbles
@@ -478,26 +520,33 @@ class Bubble_Grid(object):
                     path.append((i,j+1))
 
         newDroppers = Dropper_List()
-        for i in range(num_rows):
-            for j in col_range:   # loop through all kill bubbles except top row
+        for i in range(num_rows-1): # loop through all Bubble_Row except top row
+            for j in col_range:   
                 gb = self.rows[i][j]
-                if gb.color and (i,j) not in keep:  # drop any bubbles not in keep list
-                    newDroppers += Dropper(gb.x, gb.y, gb.color, self.velocity, j)
+                if gb.color and (i,j) not in keep:  #drop bubbles not in keep 
+                    newDroppers += Dropper(gb.x, gb.y, gb.color, self.velocity
+                                           , j)
                     self.rows[i][j].color = None
 
         return newDroppers
 
     def get_matches(self):
+        """
+        Check for consecutive colors horizontally and vertically of the length
+         perscribed in the MATCH_LENGTH constant. Return a list of tuples
+         containing grid positions of matches: [(i,j), ...]
+        """
         if not self.rows:
             return
 
         row_range = range(len(self.rows))
 
-        matches = [] #[(i,j), ...]
-        for i in row_range:
+        matches = [] # [(i,j), ...]
+        
+        for i in row_range: # Horizontal Check
             curr_color = None
             count = 0
-            for j in range(Bubble_Grid.BOARD_WIDTH):
+            for j in range(BOARD_WIDTH):
                 tbc = self.rows[i][j].color
                 if not tbc:
                     curr_color = None
@@ -510,10 +559,10 @@ class Bubble_Grid(object):
                     curr_color = tbc
                     count = 1
 
-                if count >= Bubble_Grid.MATCH_LENGTH:
+                if count == MATCH_LENGTH:
                     matches.append((i,j))
 
-        for j in range(Bubble_Grid.BOARD_WIDTH):
+        for j in range(BOARD_WIDTH): # Vertical Check
             curr_color = None
             count = 0
             for i in row_range:
@@ -529,17 +578,24 @@ class Bubble_Grid(object):
                     curr_color = tbc
                     count = 1
 
-                if count >= Bubble_Grid.MATCH_LENGTH:
+                if count == MATCH_LENGTH:
                     matches.append((i,j))
 
         return matches
 
-    def prune_bottom_row(self, HEIGHT):
-        if self.rows and self.rows[0][0].y > HEIGHT + Bubble.BUBBLE_DIAMETER//2:
+    def prune_bottom_row(self):
+        """
+        Removes the bottom (1st) Bubble_Row if it's off the bottom of screen
+        """
+        if self.rows and self.rows[0][0].y > HEIGHT + BUBBLE_DIAMETER//2:
             del self.rows[0] # fell off screen
 
     def collide(self, x, y, radius):
-        strike_zone = Bubble.BUBBLE_DIAMETER//2 + radius
+        """
+        Given an x, y location and radius of a circular object, return True if
+         any Bubble in the grid collides with the object and False otherwise.
+        """
+        strike_zone = BUBBLE_DIAMETER//2 + radius
         for row in self.rows:
             for b in row:
                 if b.color and is_close(b.x, b.y, x, y, strike_zone):
@@ -577,7 +633,7 @@ class Bubble_Grid(object):
                 for nei in n:
                     i, j = nei
                     if (i in range(len(self.rows))
-                            and j in range(Bubble_Grid.BOARD_WIDTH)
+                            and j in range(BOARD_WIDTH)
                             and self.rows[i][j].color == color):
                         path.append((i, j))
 
@@ -588,7 +644,7 @@ class Bubble_Grid(object):
 
     def falling_bubble_lands(self, fb):
         y, c, j = fb.y, fb.color, fb.column
-        d = Bubble.BUBBLE_DIAMETER + Bubble_Grid.BUBBLE_PADDING
+        d = BUBBLE_DIAMETER + BUBBLE_PADDING
         for i, row in enumerate(self.rows):
             b = row[j] # only check in the faller's column
             if b.color and abs(b.y - y) <= d:
