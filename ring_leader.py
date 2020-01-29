@@ -130,10 +130,10 @@ def on_key_down(key):
     """
     global game_state
     if key == keys.SPACE:
-        if game_state == 6:
-            game_state == 1
-        elif game_state == 1:
+        if game_state == 1:
             ship.cycle_color()
+        elif game_state == 6:
+            game_state == 1
     if key == keys.P:
         if game_state == 3:
             game_state = 1

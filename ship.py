@@ -29,7 +29,7 @@ class Ship(object):
         self.bullet_colors = color_list
         self.bullet_index = 0
         self.final_radius = HULL_RADIUS
-        self.current_radius = 0
+        self.current_radius = 1
         self.velx, self.vely  = 0, 0
         self.ethrust = False
         self.wthrust = False

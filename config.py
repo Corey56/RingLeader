@@ -78,7 +78,7 @@ INTRODUCTION = """
 |                                  |
 |~~~!!!WELCOME TO RING LEADER!!!~~~|
 |__________________________________|
-          
+ 
     TO BEGIN, PRESS THE SPACE BAR
 
 TO VIEW INSTRUCTIONS, PRESS THE 'I' KEY"""
