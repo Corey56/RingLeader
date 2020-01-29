@@ -19,7 +19,7 @@ from ship import Ship
 from bubble import Bubble_Grid, Bullet_List, Dropper_List, Bullet
 from score import Score
 from config import HEIGHT, WIDTH, COLOR_LEVELS, HULL_RADIUS, BLACK, \
-                   PAUSE_MESSAGE, INSTRUCTIONS, GAME_OVER_MSG
+                   PAUSE_MESSAGE, INSTRUCTIONS, GAME_OVER_MSG, INTRODUCTION
 
 def initalize_game():
     """
@@ -40,8 +40,8 @@ def initalize_game():
     ship = Ship((WIDTH // 2, HEIGHT - 2*HULL_RADIUS), COLOR_LEVELS[0])
     # Tracks the player's score
     score = Score(500)
-    #1: Normal Play, 0: Game Over, 3: Paused, 5: Instruction
-    game_state = 1 
+    #1: Normal Play, 0: Game Over, 3: Paused, 5: Instruction, 6: Introduction
+    game_state = 6 
     # Levels progresses with player score
     level = 1
     # Briefly displayed at level up
@@ -68,8 +68,12 @@ def draw():
     elif game_state == 3:  # Game Paused
         screen.draw.text(PAUSE_MESSAGE, centery=HEIGHT//2, centerx=WIDTH//2)
     elif game_state == 5:  # Instruction Screen
-        screen.fill(BLACK) # Declutter for redaing instructions
+        screen.fill(BLACK) # Declutter for reading instructions
         screen.draw.text(INSTRUCTIONS, topleft=(350,150))
+    elif game_state == 6:  # Introduction Screen
+        screen.fill(BLACK) # Declutter for reading introduction
+        screen.draw.text(INTRODUCTION, topleft=(350,150))
+
 
 def update():
     """
@@ -126,7 +130,10 @@ def on_key_down(key):
     """
     global game_state
     if key == keys.SPACE:
-        ship.cycle_color()
+        if game_state == 6:
+            game_state == 1
+        elif game_state == 1:
+            ship.cycle_color()
     if key == keys.P:
         if game_state == 3:
             game_state = 1
@@ -138,6 +145,8 @@ def on_key_down(key):
         if game_state == 3:
             game_state = 5
         elif game_state == 5:
+            game_state = 3
+        elif game_state == 6:
             game_state = 3
 
 def next_level():

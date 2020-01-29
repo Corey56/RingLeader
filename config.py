@@ -72,3 +72,13 @@ Press 'I' to return to pause screen"""
 
 GAME_OVER_MSG = """GAME OVER
 press 'r' to play again"""
+
+INTRODUCTION = """
+ __________________________________
+|                                  |
+|~~~!!!WELCOME TO RING LEADER!!!~~~|
+|__________________________________|
+          
+    TO BEGIN, PRESS THE SPACE BAR
+
+TO VIEW INSTRUCTIONS, PRESS THE 'I' KEY"""
