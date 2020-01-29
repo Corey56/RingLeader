@@ -86,7 +86,6 @@ def update():
         score += droppers.check_bounds()
         droppers.land(bubble_grid)
         droppers.strike(ship)
-        bubble_grid.prune_bottom_row()
         bubble_grid.addTopRow()
         bubble_grid.move(delta)
         score += bubble_grid.erase_matches()
@@ -94,6 +93,9 @@ def update():
         ship.update(delta, keyboard, keys)
         if bubble_grid.collide(ship.x, ship.y, ship.current_radius):
             game_state = 0 # Game Over
+        score.update(delta)
+        if bubble_grid.prune_bottom_row():
+            game_state = 0
         score.update(delta)
         if score.is_new_level(): # Triger level change
             next_level()

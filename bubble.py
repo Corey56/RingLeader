@@ -589,6 +589,8 @@ class Bubble_Grid(object):
         """
         if self.rows and self.rows[0][0].y > HEIGHT + BUBBLE_DIAMETER//2:
             del self.rows[0] # fell off screen
+            return True
+        return False
 
     def collide(self, x, y, radius):
         """
